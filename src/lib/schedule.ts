@@ -18,7 +18,7 @@ export const dosesForDate = (meds: Medication[], logs: DoseLog[], date: string, 
   const shiftById = new Map(shifts.filter((s) => s.date === date).map((s) => [s.doseId, s]))
   const doses: Dose[] = []
   meds.forEach((m) => {
-    if (m.asNeeded || !isMedScheduledOn(m, date)) return
+    if (m.paused || m.asNeeded || !isMedScheduledOn(m, date)) return
     m.times.forEach((baseTime) => {
       const id = doseId(m.id, date, baseTime)
       const log = byId.get(id)

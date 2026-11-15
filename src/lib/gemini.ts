@@ -333,13 +333,19 @@ export const generateLeaflet = async (config: GeminiConfig, med: LeafletRequest,
 Rules:
 - Be accurate, conservative and clinically responsible. Use only well-established information about this active ingredient and presentation. If you are unsure about a detail, leave it out or tell the patient to confirm with a pharmacist.
 - Never give a personal dose, never diagnose, and never tell the patient to stop or change a treatment on their own.
-- Write short, clear, jargon-free items (max 25 words each), 2 to 5 items per section.
+- For posology, give only general reference guidance from typical package inserts. Always state clearly that individualized dosing, schedule and duration require medical or pharmacist guidance — never invent a specific personal regimen.
+- Write short, clear, jargon-free items (max 25 words each), 2 to 5 items per list.
 - Return JSON only with this exact shape:
 {
-  "indications": string[],        // what it is for
-  "administration": string[],     // how to take it: food, fasting, timing, spacing from other substances, missed dose
-  "sideEffects": string[],        // common side effects, then warning signs that need medical attention
-  "contraindications": string[]   // who should not take it, key precautions, and how to store it
+  "indications": string[],
+  "posology": {
+    "generalUsage": string[],           // general administration guidance from the leaflet
+    "frequencyGuidelines": string[],    // that dose timing/interval needs clinical assessment; typical reference ranges only if well established
+    "safetyNotice": string[]            // safety limits and the need to follow the individual medical/pharmacist prescription strictly
+  },
+  "administration": string[],           // food/fasting, whether tablets can be split/crushed, drop dilution, spacing from other substances
+  "sideEffects": string[],              // common side effects, then warning signs that need medical attention
+  "contraindications": string[]         // who should not take it, key precautions, and how to store it
 }
 ${languageRule(config.language)} Every string item must follow that language.`
   const raw = await callGemini({ ...config, input: [text(prompt)], json: true, temperature: SUMMARY_TEMPERATURE, signal })

@@ -1,12 +1,13 @@
-import { useRef, useState } from 'react'
-import { Camera, ClipboardPaste, FlaskConical, Plus, ScanBarcode, ScanLine, Search, ShieldCheck, Sparkles, Tag, Trash2, TriangleAlert, Upload } from 'lucide-react'
-import type { Category, FdaInfo } from '../types'
+import { useEffect, useRef, useState } from 'react'
+import { Camera, ClipboardPaste, FlaskConical, Pause, Play, Plus, ScanBarcode, ScanLine, Search, ShieldCheck, Sparkles, Tag, Trash2, TriangleAlert, Upload } from 'lucide-react'
+import type { Category, FdaInfo, Medication } from '../types'
 import { adminRuleFor, englishGenerics, findCuratedByName, type AnvisaMed } from '../data/anvisaMeds'
 import { lookupEan, type EanMatch } from '../data/eanIndex'
 import { useI18n, type TKey } from '../i18n'
 import { ADMIN_RULE_PRESETS } from '../i18n/adminRules'
 import { FORMS, formLabel, isFormName } from '../i18n/forms'
 import { useData, useUi } from '../lib/store'
+import { useToast } from '../lib/toast'
 import { enrichMedication } from '../lib/normalize'
 import { type ScannedMedication, identifyBarcodeWithGemini, scanMedicationWithGemini } from '../lib/gemini'
 import { asCategory, parsePrescriptionText } from '../lib/prescriptionParser'
@@ -73,12 +74,42 @@ const loadImage = (file: File, messages: { read: string; unreadable: string }) =
     reader.readAsDataURL(file)
   })
 
-export const AddMedicationModal = () => {
+const seedFromMed = (med: Medication) => ({
+  name: med.name,
+  strength: med.strength,
+  form: med.form || 'Tablet',
+  category: med.category,
+  asNeeded: med.asNeeded,
+  temporary: Boolean(med.temporary),
+  courseDays: med.courseDays ?? 7,
+  times: med.times.length ? med.times : ['08:00'],
+  pillsPerDose: med.pillsPerDose,
+  stock: med.stock,
+  refillThreshold: med.refillThreshold,
+  instructions: med.instructions,
+  notes: med.notes,
+  ingredients: med.ingredients,
+  fda: med.fda,
+  activeIngredient: med.activeIngredient ?? '',
+  adminRule: med.adminRule ?? '',
+  price: med.lastPaidPrice !== undefined ? String(med.lastPaidPrice).replace('.', ',') : '',
+  pharmacy: med.lastPharmacy ?? '',
+  spacingHours: med.spacingHours !== undefined ? String(med.spacingHours) : '',
+  spacingTarget: med.spacingTarget ?? '',
+  pmc: med.pmc,
+  paused: Boolean(med.paused),
+})
+
+export const AddMedicationModal = ({ medId, onClose }: { medId?: string; onClose?: () => void } = {}) => {
   const { openModal } = useUi()
-  const { addMed } = useData()
+  const { data, addMed, updateMed } = useData()
+  const { toast } = useToast()
   const { t, lang } = useI18n()
-  const close = () => openModal(null)
+  const editing = Boolean(medId)
+  const existing = medId ? data.meds.find((m) => m.id === medId) : undefined
+  const close = () => (onClose ? onClose() : openModal(null))
   const geminiConfig = useGeminiConfig()
+  const seeded = existing ? seedFromMed(existing) : null
 
   const [mode, setMode] = useState<Mode>('name')
   const [pasted, setPasted] = useState('')
@@ -87,33 +118,38 @@ export const AddMedicationModal = () => {
   const [status, setStatus] = useState<Status | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const [name, setName] = useState('')
+  const [name, setName] = useState(seeded?.name ?? '')
   const [selectedMed, setSelectedMed] = useState<AnvisaMed | null>(null)
-  const [strength, setStrength] = useState('')
-  const [form, setForm] = useState('Tablet')
-  const [category, setCategory] = useState<Category>('supplement')
-  const [asNeeded, setAsNeeded] = useState(false)
-  const [temporary, setTemporary] = useState(false)
-  const [courseDays, setCourseDays] = useState(7)
-  const [times, setTimes] = useState<string[]>(['08:00'])
-  const [pillsPerDose, setPillsPerDose] = useState(1)
-  const [stock, setStock] = useState(30)
-  const [refillThreshold, setRefillThreshold] = useState(7)
-  const [instructions, setInstructions] = useState('')
-  const [notes, setNotes] = useState('')
-  const [ingredients, setIngredients] = useState<string[]>([])
-  const [fda, setFda] = useState<FdaInfo | undefined>()
-  const [activeIngredient, setActiveIngredient] = useState('')
-  const [adminRule, setAdminRule] = useState('')
-  const [price, setPrice] = useState('')
-  const [pharmacy, setPharmacy] = useState('')
-  const [spacingHours, setSpacingHours] = useState('')
-  const [spacingTarget, setSpacingTarget] = useState('')
-  const [pmc, setPmc] = useState<number | undefined>()
+  const [strength, setStrength] = useState(seeded?.strength ?? '')
+  const [form, setForm] = useState(seeded?.form ?? 'Tablet')
+  const [category, setCategory] = useState<Category>(seeded?.category ?? 'supplement')
+  const [asNeeded, setAsNeeded] = useState(seeded?.asNeeded ?? false)
+  const [temporary, setTemporary] = useState(seeded?.temporary ?? false)
+  const [courseDays, setCourseDays] = useState(seeded?.courseDays ?? 7)
+  const [times, setTimes] = useState<string[]>(seeded?.times ?? ['08:00'])
+  const [pillsPerDose, setPillsPerDose] = useState(seeded?.pillsPerDose ?? 1)
+  const [stock, setStock] = useState(seeded?.stock ?? 30)
+  const [refillThreshold, setRefillThreshold] = useState(seeded?.refillThreshold ?? 7)
+  const [instructions, setInstructions] = useState(seeded?.instructions ?? '')
+  const [notes, setNotes] = useState(seeded?.notes ?? '')
+  const [ingredients, setIngredients] = useState<string[]>(seeded?.ingredients ?? [])
+  const [fda, setFda] = useState<FdaInfo | undefined>(seeded?.fda)
+  const [activeIngredient, setActiveIngredient] = useState(seeded?.activeIngredient ?? '')
+  const [adminRule, setAdminRule] = useState(seeded?.adminRule ?? '')
+  const [price, setPrice] = useState(seeded?.price ?? '')
+  const [pharmacy, setPharmacy] = useState(seeded?.pharmacy ?? '')
+  const [spacingHours, setSpacingHours] = useState(seeded?.spacingHours ?? '')
+  const [spacingTarget, setSpacingTarget] = useState(seeded?.spacingTarget ?? '')
+  const [pmc, setPmc] = useState<number | undefined>(seeded?.pmc)
+  const [paused, setPaused] = useState(seeded?.paused ?? false)
   const [barcode, setBarcode] = useState<BarcodeResult | null>(null)
   const [barcodeBusy, setBarcodeBusy] = useState(false)
   const [barcodeGeminiBusy, setBarcodeGeminiBusy] = useState(false)
   const [barcodeMessage, setBarcodeMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (editing && !existing) close()
+  }, [editing, existing])
 
   const handleNameChange = (value: string) => {
     setName(value)
@@ -313,7 +349,7 @@ export const AddMedicationModal = () => {
 
   const save = () => {
     if (!name.trim() || priceInvalid || spacingInvalid) return
-    addMed({
+    const payload = {
       name: name.trim(),
       strength: strength.trim(),
       form,
@@ -331,13 +367,22 @@ export const AddMedicationModal = () => {
       adminRule: adminRule.trim() || undefined,
       temporary: temporary && !asNeeded,
       courseDays: temporary && !asNeeded ? Math.max(1, Math.min(90, courseDays)) : undefined,
+      courseArchivedAt: temporary && !asNeeded ? existing?.courseArchivedAt : undefined,
       spacingHours: spacingValid ? spacingValue : undefined,
       spacingTarget: spacingValid ? spacingTarget.trim() : undefined,
       lastPaidPrice: priceValue ?? undefined,
       pmc,
       lastPharmacy: pharmacy.trim() || undefined,
-      lastPaidAt: priceValue !== null || pharmacy.trim() ? new Date().toISOString() : undefined,
-    })
+      lastPaidAt: priceValue !== null || pharmacy.trim() ? new Date().toISOString() : existing?.lastPaidAt,
+      paused: paused || undefined,
+    }
+    if (editing && medId) {
+      updateMed(medId, payload)
+      toast(t('toast.medUpdated'))
+    } else {
+      addMed(payload)
+      toast(t('toast.medAdded'))
+    }
     close()
   }
 
@@ -349,8 +394,8 @@ export const AddMedicationModal = () => {
   return (
     <Modal
       wide
-      title={t('add.title')}
-      subtitle={t('add.subtitle')}
+      title={editing ? t('add.editTitle') : t('add.title')}
+      subtitle={editing ? t('add.editSubtitle') : t('add.subtitle')}
       onClose={close}
       footer={
         <>
@@ -358,13 +403,34 @@ export const AddMedicationModal = () => {
             {t('common.cancel')}
           </button>
           <button type="button" className="btn btn-primary" onClick={save} disabled={!name.trim() || (!asNeeded && times.length === 0) || spacingInvalid}>
-            <Plus className="h-4 w-4" />
-            {t('add.submit')}
+            {editing ? null : <Plus className="h-4 w-4" />}
+            {editing ? t('add.saveChanges') : t('add.submit')}
           </button>
         </>
       }
     >
       <div className="space-y-6">
+        {editing && (
+          <button
+            type="button"
+            onClick={() => setPaused(!paused)}
+            aria-pressed={paused}
+            className={cx(
+              'btn w-full justify-between !rounded-2xl !px-4 !py-3 text-sm',
+              paused ? '!border-amber-300/40 !bg-amber-400/15 text-amber-50' : '!border-white/15',
+            )}
+          >
+            <span className="flex items-center gap-2">
+              {paused ? <Play className="h-4 w-4 text-amber-300" /> : <Pause className="h-4 w-4 text-slate-300" />}
+              {paused ? t('add.resume') : t('add.pause')}
+            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              {paused ? t('add.pausedOn') : t('add.pausedOff')}
+            </span>
+          </button>
+        )}
+
+        {!editing && (
         <div className="glass-soft space-y-4 p-4">
           <div className="grid grid-cols-2 gap-1.5 rounded-3xl border border-white/10 bg-black/20 p-1" role="tablist">
             {MODES.map(({ id, label, icon: Icon }) => (
@@ -475,9 +541,10 @@ export const AddMedicationModal = () => {
 
           {status && <p className={cx('rounded-2xl border px-4 py-3 text-sm animate-fade', STATUS_STYLE[status.kind])}>{status.text}</p>}
         </div>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2">
-          {mode !== 'name' && (
+          {(editing || mode !== 'name') && (
             <div className="sm:col-span-2">
               <label className="label" htmlFor="med-name">
                 {t('common.name')}

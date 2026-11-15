@@ -49,6 +49,10 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(12px) scale(0.97)' },
           '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
         },
+        sheet: {
+          '0%': { opacity: '0', transform: 'translateY(100%)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
         fade: {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
@@ -109,6 +113,7 @@ export default {
         drift2: 'drift2 46s ease-in-out infinite',
         drift3: 'drift3 54s ease-in-out infinite',
         pop: 'pop 0.22s cubic-bezier(0.22,1,0.36,1) both',
+        sheet: 'sheet 0.38s cubic-bezier(0.22,1,0.36,1) both',
         fade: 'fade 0.2s cubic-bezier(0.22,1,0.36,1) both',
         rise: 'rise 0.22s cubic-bezier(0.22,1,0.36,1) both',
         haptic: 'haptic 0.9s cubic-bezier(0.22,1,0.36,1) both',

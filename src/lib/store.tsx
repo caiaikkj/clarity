@@ -21,8 +21,10 @@ type Action =
   | { type: 'refill'; id: string; quantity: number }
   | { type: 'updateMed'; id: string; patch: Partial<Medication> }
   | { type: 'addNote'; note: Note }
+  | { type: 'updateNote'; id: string; patch: Partial<Pick<Note, 'text' | 'occurredAt' | 'medIds' | 'symptoms' | 'habits' | 'mood'>> }
   | { type: 'removeNote'; id: string }
   | { type: 'logNoteDose'; noteId: string }
+  | { type: 'adjustTaken'; doseId: string; takenAt: string }
   | { type: 'replace'; data: AppData }
 
 const adjustStock = (meds: Medication[], medId: string, delta: number) =>
@@ -88,8 +90,28 @@ const reducer = (state: AppData, action: Action): AppData => {
       return { ...state, meds: state.meds.map((m) => (m.id === action.id ? { ...m, ...action.patch, id: m.id } : m)) }
     case 'addNote':
       return { ...state, notes: [action.note, ...state.notes] }
+    case 'updateNote':
+      return {
+        ...state,
+        notes: state.notes.map((n) => (n.id === action.id ? { ...n, ...action.patch } : n)),
+      }
     case 'removeNote':
       return { ...state, notes: state.notes.filter((n) => n.id !== action.id) }
+    case 'adjustTaken': {
+      const log = state.logs.find((l) => l.id === action.doseId)
+      if (!log || log.time === 'prn') return state
+      const cleared = {
+        ...state,
+        logs: state.logs.map((l) => (l.id === action.doseId ? { ...l, takenAt: action.takenAt } : l)),
+        shifts: (state.shifts ?? []).filter((s) => s.causeDoseId !== action.doseId),
+      }
+      const shifts = rescheduleAfterTake(
+        cleared,
+        { medId: log.medId, date: log.date, baseTime: log.time },
+        new Date(action.takenAt),
+      )
+      return { ...cleared, shifts: shifts.filter((s) => s.doseId !== action.doseId) }
+    }
     case 'logNoteDose': {
       const note = state.notes.find((n) => n.id === action.noteId)
       if (!note || note.doseLogged) return state
@@ -154,8 +176,10 @@ interface DataApi {
   refill: (id: string, quantity: number) => void
   updateMed: (id: string, patch: Partial<Medication>) => void
   addNote: (text: string, parsed: ParsedNote) => void
+  updateNote: (id: string, patch: Partial<Pick<Note, 'text' | 'occurredAt' | 'medIds' | 'symptoms' | 'habits' | 'mood'>>) => void
   removeNote: (id: string) => void
   logNoteDose: (id: string) => void
+  adjustTaken: (doseId: string, takenAt: string) => void
   clearAll: () => void
   replaceData: (data: AppData | unknown) => void
   exportBackup: () => string
@@ -224,8 +248,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             source: parsed.source,
           },
         }),
+      updateNote: (id, patch) => dispatch({ type: 'updateNote', id, patch }),
       removeNote: (id) => dispatch({ type: 'removeNote', id }),
       logNoteDose: (id) => dispatch({ type: 'logNoteDose', noteId: id }),
+      adjustTaken: (doseId, takenAt) => dispatch({ type: 'adjustTaken', doseId, takenAt }),
       clearAll: () => dispatch({ type: 'replace', data: EMPTY_DATA }),
       replaceData: (next) => dispatch({ type: 'replace', data: migrateAppData(next) }),
       exportBackup: () => JSON.stringify(sanitizeAppData(data), null, 2),

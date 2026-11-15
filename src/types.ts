@@ -21,8 +21,15 @@ export interface FdaInfo {
   localizedLang?: 'pt-BR' | 'en-US'
 }
 
+export interface LeafletPosology {
+  generalUsage: string[]
+  frequencyGuidelines: string[]
+  safetyNotice: string[]
+}
+
 export interface LeafletSummary {
   indications: string[]
+  posology?: LeafletPosology
   administration: string[]
   sideEffects: string[]
   contraindications: string[]
@@ -59,6 +66,7 @@ export interface Medication {
   temporary?: boolean
   courseDays?: number
   courseArchivedAt?: string
+  paused?: boolean
 }
 
 export interface SpacingInfo {

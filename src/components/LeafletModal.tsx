@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AlertTriangle, BookOpen, ExternalLink, Info, RefreshCw, ShieldAlert, Stethoscope, Utensils, type LucideIcon } from 'lucide-react'
-import { useI18n } from '../i18n'
+import { AlertTriangle, BookOpen, ClipboardList, ExternalLink, Info, RefreshCw, ShieldAlert, Stethoscope, Utensils, type LucideIcon } from 'lucide-react'
+import { useI18n, type TKey } from '../i18n'
 import { formLabel } from '../i18n/forms'
 import { localizeIngredients } from '../i18n/ingredients'
 import { formatDateTime } from '../lib/dates'
 import { generateLeaflet } from '../lib/gemini'
-import { LEAFLET_SECTION_KEYS, anvisaLeafletUrl, consultaRemediosUrl, type LeafletSectionKey } from '../lib/leaflet'
+import {
+  LEAFLET_SECTION_KEYS,
+  POSOLOGY_KEYS,
+  anvisaLeafletUrl,
+  consultaRemediosUrl,
+  hasPosology,
+  type LeafletSectionKey,
+} from '../lib/leaflet'
 import { useData, useUi } from '../lib/store'
 import { useGeminiConfig } from '../lib/useGemini'
 import { LabelDetails } from './LabelDetails'
@@ -15,9 +22,16 @@ const STAGGER_MS = 70
 
 const SECTION_META: Record<LeafletSectionKey, { icon: LucideIcon; accent: string }> = {
   indications: { icon: Stethoscope, accent: 'text-sky-300' },
+  posology: { icon: ClipboardList, accent: 'text-cyan-300' },
   administration: { icon: Utensils, accent: 'text-indigo-300' },
   sideEffects: { icon: AlertTriangle, accent: 'text-amber-300' },
   contraindications: { icon: ShieldAlert, accent: 'text-rose-300' },
+}
+
+const POSOLOGY_LABELS: Record<(typeof POSOLOGY_KEYS)[number], TKey> = {
+  generalUsage: 'leaflet.posology.generalUsage',
+  frequencyGuidelines: 'leaflet.posology.frequencyGuidelines',
+  safetyNotice: 'leaflet.posology.safetyNotice',
 }
 
 const LINK_CLASS = 'btn !rounded-full !px-4 !py-2 text-xs'
@@ -31,6 +45,18 @@ const SectionSkeleton = () => (
   </div>
 )
 
+const BulletList = ({ items }: { items: string[] }) =>
+  items.length > 0 ? (
+    <ul className="space-y-2">
+      {items.map((item) => (
+        <li key={item} className="flex gap-2 text-[13px] leading-relaxed text-slate-300">
+          <span className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-slate-500" />
+          <span className="min-w-0 break-words">{item}</span>
+        </li>
+      ))}
+    </ul>
+  ) : null
+
 export const LeafletModal = ({ medId, onClose }: { medId: string; onClose: () => void }) => {
   const { data, updateMed } = useData()
   const { openModal } = useUi()
@@ -38,7 +64,9 @@ export const LeafletModal = ({ medId, onClose }: { medId: string; onClose: () =>
   const gemini = useGeminiConfig()
   const med = data.meds.find((m) => m.id === medId)
   const leaflet = med?.leafletSummary?.[lang]
-  const hasLeaflet = Boolean(leaflet)
+  const incomplete = Boolean(leaflet && !hasPosology(leaflet))
+  const needsRefresh = incomplete && Boolean(gemini)
+  const hasCompleteLeaflet = Boolean(leaflet && hasPosology(leaflet))
 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -85,20 +113,22 @@ export const LeafletModal = ({ medId, onClose }: { medId: string; onClose: () =>
   }, [gemini, medId])
 
   useEffect(() => {
-    if (!hasLeaflet && gemini) void generate()
+    if ((!leaflet || needsRefresh) && gemini) void generate()
     return () => {
       controller.current?.abort()
       setBusy(false)
       setError(null)
     }
-  }, [hasLeaflet, gemini, generate])
+  }, [leaflet, needsRefresh, gemini, generate])
 
   if (!med) return null
 
   const activeIngredient = med.activeIngredient || localizeIngredients(med.ingredients, lang).join(' + ')
   const presentation = [med.strength, formLabel(med.form, lang)].filter(Boolean).join(' · ')
   const hasFda = Boolean(med.fda && med.fda.source !== 'none')
-  const showSkeleton = busy && !leaflet
+  const showSkeleton = busy && (!leaflet || needsRefresh)
+  const displayLeaflet = hasCompleteLeaflet || (incomplete && !gemini) ? leaflet! : null
+  const posology = displayLeaflet?.posology ?? { generalUsage: [], frequencyGuidelines: [], safetyNotice: [] }
 
   const openSettings = () => {
     onClose()
@@ -146,7 +176,13 @@ export const LeafletModal = ({ medId, onClose }: { medId: string; onClose: () =>
           <p className="flex min-w-0 items-center gap-1.5 text-[11px] text-slate-400">
             <BookOpen className="h-3.5 w-3.5 shrink-0 text-sky-300" />
             <span className="truncate">
-              {busy ? t('leaflet.generating') : leaflet ? t('leaflet.saved', { date: formatDateTime(leaflet.generatedAt, lang) }) : t('leaflet.notGenerated')}
+              {busy
+                ? needsRefresh
+                  ? t('leaflet.updatingPosology')
+                  : t('leaflet.generating')
+                : displayLeaflet
+                  ? t('leaflet.saved', { date: formatDateTime(displayLeaflet.generatedAt, lang) })
+                  : t('leaflet.notGenerated')}
             </span>
           </p>
           <button
@@ -163,7 +199,7 @@ export const LeafletModal = ({ medId, onClose }: { medId: string; onClose: () =>
 
         {error && <p className="rounded-2xl border border-rose-300/25 bg-rose-500/10 px-3.5 py-2.5 text-xs text-rose-200">{error}</p>}
 
-        {!leaflet && !gemini && (
+        {!displayLeaflet && !gemini && (
           <div className="glass-soft space-y-3 p-4">
             <p className="text-sm leading-relaxed text-slate-300">{t('leaflet.needKey')}</p>
             <button type="button" className="btn !rounded-full !px-4 !py-2 text-xs" onClick={openSettings}>
@@ -172,29 +208,65 @@ export const LeafletModal = ({ medId, onClose }: { medId: string; onClose: () =>
           </div>
         )}
 
-        {(leaflet || showSkeleton) && (
-          <div className={cx('grid gap-3 transition-opacity duration-200 sm:grid-cols-2', busy && leaflet && 'opacity-60')}>
+        {(displayLeaflet || showSkeleton) && (
+          <div className={cx('grid gap-3 transition-opacity duration-200 sm:grid-cols-2', busy && displayLeaflet && 'opacity-60')}>
             {LEAFLET_SECTION_KEYS.map((key, index) => {
-              if (!leaflet) return <SectionSkeleton key={key} />
+              if (!displayLeaflet) return <SectionSkeleton key={key} />
               const { icon: Icon, accent } = SECTION_META[key]
-              const items = leaflet[key]
+              const highlighted = key === 'posology'
               return (
-                <section key={key} className="glass-soft animate-rise p-4" style={{ animationDelay: `${index * STAGGER_MS}ms` }}>
-                  <div className="mb-3 flex items-center gap-2.5">
-                    <span className={cx('flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.07]', accent)}>
-                      <Icon className="h-4 w-4" />
+                <section
+                  key={key}
+                  className={cx(
+                    'animate-rise',
+                    highlighted
+                      ? 'rounded-[26px] border-2 border-cyan-300/35 bg-gradient-to-br from-cyan-400/[0.16] via-white/[0.06] to-amber-400/[0.14] p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.18),0_0_40px_-10px_rgba(34,211,238,0.55),0_0_28px_-14px_rgba(251,191,36,0.35)] backdrop-blur-md sm:col-span-2 sm:p-6'
+                      : 'glass-soft p-4',
+                  )}
+                  style={{ animationDelay: `${index * STAGGER_MS}ms` }}
+                >
+                  <div className={cx('flex items-center gap-2.5', highlighted ? 'mb-4' : 'mb-3')}>
+                    <span
+                      className={cx(
+                        'flex shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.07]',
+                        accent,
+                        highlighted ? 'h-11 w-11' : 'h-8 w-8',
+                      )}
+                    >
+                      <Icon className={highlighted ? 'h-5 w-5' : 'h-4 w-4'} />
                     </span>
-                    <h3 className="text-sm font-semibold leading-snug text-white">{t(`leaflet.section.${key}`)}</h3>
+                    <h3 className={cx('font-semibold leading-snug text-white', highlighted ? 'text-lg sm:text-xl' : 'text-sm')}>
+                      {t(`leaflet.section.${key}`)}
+                    </h3>
                   </div>
-                  {items.length > 0 ? (
-                    <ul className="space-y-2">
-                      {items.map((item) => (
-                        <li key={item} className="flex gap-2 text-[13px] leading-relaxed text-slate-300">
-                          <span className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-slate-500" />
-                          <span className="min-w-0 break-words">{item}</span>
-                        </li>
-                      ))}
-                    </ul>
+
+                  {key === 'posology' ? (
+                    <div className="grid gap-3.5 sm:grid-cols-3">
+                      {POSOLOGY_KEYS.map((sub) => {
+                        const items = posology[sub]
+                        return (
+                          <div key={sub} className="rounded-2xl border border-cyan-200/15 bg-black/30 p-4">
+                            <p className="mb-3 text-[12px] font-semibold uppercase tracking-[0.07em] text-cyan-100">
+                              {t(POSOLOGY_LABELS[sub])}
+                            </p>
+                            {items.length > 0 ? (
+                              <ul className="space-y-2.5">
+                                {items.map((item) => (
+                                  <li key={item} className="flex gap-2.5 text-[15px] leading-relaxed text-slate-100">
+                                    <span className="mt-[10px] h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300/80" />
+                                    <span className="min-w-0 break-words">{item}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-[14px] text-slate-500">{t('leaflet.noData')}</p>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : displayLeaflet[key].length > 0 ? (
+                    <BulletList items={displayLeaflet[key]} />
                   ) : (
                     <p className="text-[13px] text-slate-500">{t('leaflet.noData')}</p>
                   )}

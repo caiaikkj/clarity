@@ -111,7 +111,7 @@ export const TopBar = () => {
   const online = useOnlineStatus()
 
   return (
-    <div className="no-print fixed inset-x-3 top-3 z-30 flex items-center justify-between gap-2 lg:inset-x-auto lg:right-6 lg:top-4">
+    <div className="no-print fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-30 flex items-center justify-between gap-2 lg:inset-x-auto lg:right-6 lg:top-4">
       {!online ? (
         <span className="flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-amber-400/15 px-3 py-1.5 text-xs font-semibold text-amber-100 backdrop-blur-xl">
           <WifiOff className="h-3.5 w-3.5" />

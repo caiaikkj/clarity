@@ -3,12 +3,14 @@ import { AlertTriangle, Clock, Flame, NotebookPen, Pill, Plus, Undo2 } from 'luc
 import type { Dose, Medication, TimeBlock } from '../types'
 import { useI18n } from '../i18n'
 import { useData, useNow, useUi } from '../lib/store'
+import { useToast } from '../lib/toast'
 import { dateKey, formatClock, formatCountdown, formatLongDate, greeting, minutesOf, toTimeString } from '../lib/dates'
 import { adherence, blockOf, daysOfSupply, dosesForDate, isLowStock, nextDose, streak } from '../lib/schedule'
 import { AdherenceRing } from '../components/AdherenceRing'
 import { BrainDumpBar } from '../components/BrainDumpBar'
 import { MedBadges } from '../components/MedBadges'
 import { NoteCard } from '../components/NoteCard'
+import { NotesHistoryModal } from '../components/NotesHistoryModal'
 import { CourseBadge } from '../components/CourseBadge'
 import { ShiftBadge } from '../components/ShiftBadge'
 import { AnimatedCheck, Chip, EmptyState, GlassCard, PageHeader, cx } from '../components/ui'
@@ -16,9 +18,13 @@ import { AnimatedCheck, Chip, EmptyState, GlassCard, PageHeader, cx } from '../c
 const BLOCKS: TimeBlock[] = ['morning', 'afternoon', 'night']
 
 const DoseCard = ({ dose, med, now }: { dose: Dose; med: Medication; now: Date }) => {
-  const { take, undo, data } = useData()
+  const { take, undo, adjustTaken, data } = useData()
+  const { toast } = useToast()
   const { t, lang } = useI18n()
   const [pulse, setPulse] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [editTime, setEditTime] = useState(false)
+  const [timeValue, setTimeValue] = useState('')
   const timer = useRef<number>()
   const taken = Boolean(dose.log)
   const nowMinutes = now.getHours() * 60 + now.getMinutes()
@@ -30,8 +36,27 @@ const DoseCard = ({ dose, med, now }: { dose: Dose; med: Medication; now: Date }
     take(dose)
     navigator.vibrate?.(14)
     setPulse(true)
+    toast(t('toast.doseTaken', { name: med.name }))
     window.clearTimeout(timer.current)
     timer.current = window.setTimeout(() => setPulse(false), 950)
+  }
+
+  const openMenu = () => {
+    if (!dose.log) return
+    setMenuOpen(true)
+    setEditTime(false)
+    setTimeValue(toTimeString(new Date(dose.log.takenAt)))
+  }
+
+  const saveTime = () => {
+    if (!dose.log || !timeValue) return
+    const base = new Date(dose.log.takenAt)
+    const [h, m] = timeValue.split(':').map(Number)
+    base.setHours(h, m, 0, 0)
+    adjustTaken(dose.id, base.toISOString())
+    toast(t('toast.doseTimeUpdated'))
+    setEditTime(false)
+    setMenuOpen(false)
   }
 
   return (
@@ -42,7 +67,11 @@ const DoseCard = ({ dose, med, now }: { dose: Dose; med: Medication; now: Date }
         pulse && 'haptic-glow',
       )}
     >
-      <div
+      <button
+        type="button"
+        disabled={!taken}
+        onClick={openMenu}
+        aria-label={taken ? t('today.adjustDose', { name: med.name }) : undefined}
         className={cx(
           'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition-all duration-200 ease-spring',
           taken
@@ -51,7 +80,7 @@ const DoseCard = ({ dose, med, now }: { dose: Dose; med: Medication; now: Date }
         )}
       >
         {taken ? <AnimatedCheck className="h-6 w-6" animate={pulse} /> : <Pill className="h-5 w-5" />}
-      </div>
+      </button>
 
       <div className="min-w-0 flex-1">
         <p className={cx('line-clamp-2 break-words text-[15px] font-semibold leading-snug transition-colors', taken ? 'text-slate-300' : 'text-white')}>
@@ -70,17 +99,72 @@ const DoseCard = ({ dose, med, now }: { dose: Dose; med: Medication; now: Date }
             </Chip>
           )}
           {taken && dose.log && (
-            <span className="num text-sky-300">{t('today.takenAt', { time: formatClock(toTimeString(new Date(dose.log.takenAt)), lang) })}</span>
+            <button type="button" onClick={openMenu} className="num text-sky-300 underline-offset-2 hover:underline">
+              {t('today.takenAt', { time: formatClock(toTimeString(new Date(dose.log.takenAt)), lang) })}
+            </button>
           )}
         </div>
         {dose.shift && !taken && <ShiftBadge shift={dose.shift} medName={med.name} className="mt-2" />}
         <CourseBadge med={med} logs={data.logs} className="mt-2" />
         <MedBadges med={med} className="mt-2" />
+
+        {menuOpen && taken && (
+          <div className="mt-3 space-y-2 rounded-2xl border border-white/10 bg-black/25 p-3">
+            {editTime ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="time"
+                  value={timeValue}
+                  onChange={(e) => setTimeValue(e.target.value)}
+                  className="field !w-auto !py-2 text-base"
+                />
+                <button type="button" className="btn btn-primary !px-3 !py-1.5 text-xs" onClick={saveTime}>
+                  {t('common.save')}
+                </button>
+                <button type="button" className="btn btn-ghost !px-3 !py-1.5 text-xs" onClick={() => setEditTime(false)}>
+                  {t('common.cancel')}
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn !px-3 !py-1.5 text-xs"
+                  onClick={() => {
+                    undo(dose.id)
+                    toast(t('toast.doseUndone', { name: med.name }))
+                    setMenuOpen(false)
+                  }}
+                >
+                  <Undo2 className="h-3.5 w-3.5" />
+                  {t('today.undoDose')}
+                </button>
+                <button type="button" className="btn !px-3 !py-1.5 text-xs" onClick={() => setEditTime(true)}>
+                  <Clock className="h-3.5 w-3.5" />
+                  {t('today.editTime')}
+                </button>
+                <button type="button" className="btn btn-ghost !px-3 !py-1.5 text-xs" onClick={() => setMenuOpen(false)}>
+                  {t('common.close')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {taken ? (
-        <button type="button" onClick={() => undo(dose.id)} aria-label={t('today.undo', { name: med.name })} className="btn btn-ghost h-9 w-9 !p-0 text-slate-400">
+        <button
+          type="button"
+          onClick={() => {
+            undo(dose.id)
+            toast(t('toast.doseUndone', { name: med.name }))
+            setMenuOpen(false)
+          }}
+          aria-label={t('today.undo', { name: med.name })}
+          className="btn btn-ghost h-9 gap-1.5 !px-3 text-slate-400"
+        >
           <Undo2 className="h-4 w-4" />
+          <span className="hidden text-xs sm:inline">{t('today.undoDose')}</span>
         </button>
       ) : (
         <button type="button" onClick={handleTake} className="btn btn-primary shrink-0">
@@ -93,6 +177,7 @@ const DoseCard = ({ dose, med, now }: { dose: Dose; med: Medication; now: Date }
 
 const AsNeededRow = ({ med }: { med: Medication }) => {
   const { logAsNeeded } = useData()
+  const { toast } = useToast()
   const { t } = useI18n()
   const [pulse, setPulse] = useState(false)
   const timer = useRef<number>()
@@ -102,6 +187,7 @@ const AsNeededRow = ({ med }: { med: Medication }) => {
     logAsNeeded(med.id)
     navigator.vibrate?.(14)
     setPulse(true)
+    toast(t('toast.doseTaken', { name: med.name }))
     window.clearTimeout(timer.current)
     timer.current = window.setTimeout(() => setPulse(false), 950)
   }
@@ -131,6 +217,7 @@ export const TodayView = () => {
   const { t, lang } = useI18n()
   const now = useNow(15_000)
   const today = dateKey(now)
+  const [notesOpen, setNotesOpen] = useState(false)
 
   const doses = dosesForDate(data.meds, data.logs, today, data.shifts)
   const done = doses.filter((d) => d.log).length
@@ -138,9 +225,10 @@ export const TodayView = () => {
   const week = adherence(data.meds, data.logs, 7, now, data.shifts)
   const next = nextDose(doses, now)
   const medById = new Map(data.meds.map((m) => [m.id, m]))
-  const asNeeded = data.meds.filter((m) => m.asNeeded)
-  const lowStock = data.meds.filter(isLowStock)
-  const notes = [...data.notes].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)).slice(0, 5)
+  const asNeeded = data.meds.filter((m) => m.asNeeded && !m.paused)
+  const lowStock = data.meds.filter((m) => !m.paused && isLowStock(m))
+  const allNotes = [...data.notes].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
+  const notes = allNotes.slice(0, 5)
 
   return (
     <>
@@ -220,10 +308,17 @@ export const TodayView = () => {
           </GlassCard>
 
           <GlassCard className="space-y-3 p-5" delay={120}>
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
-              <NotebookPen className="h-4 w-4 text-sky-300" />
-              {t('today.recentDumps')}
-            </h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
+                <NotebookPen className="h-4 w-4 text-sky-300" />
+                {t('today.recentDumps')}
+              </h2>
+              {allNotes.length > 0 && (
+                <button type="button" onClick={() => setNotesOpen(true)} className="btn btn-ghost !rounded-full !px-3 !py-1.5 text-xs text-sky-200">
+                  {t('today.viewAllNotes', { count: allNotes.length })}
+                </button>
+              )}
+            </div>
             {notes.length === 0 ? (
               <p className="text-sm text-slate-400">{t('today.recentDumpsEmpty')}</p>
             ) : (
@@ -253,8 +348,8 @@ export const TodayView = () => {
               if (items.length === 0) return null
               const complete = items.every((d) => d.log)
               return (
-                <GlassCard key={block} className="p-5" delay={80 + i * 60}>
-                  <div className="mb-3 flex items-center justify-between">
+                <GlassCard key={block} className="p-5 sm:p-6" delay={80 + i * 60}>
+                  <div className="mb-4 flex items-center justify-between">
                     <div>
                       <h2 className="text-base font-semibold text-white">{t(`block.${block}`)}</h2>
                       <p className="text-xs text-slate-400">{t(`block.${block}.range`)}</p>
@@ -268,7 +363,7 @@ export const TodayView = () => {
                       {items.filter((d) => d.log).length}/{items.length}
                     </span>
                   </div>
-                  <div className="space-y-2.5">
+                  <div className="space-y-3">
                     {items.map((d) => {
                       const med = medById.get(d.medId)
                       return med ? <DoseCard key={d.id} dose={d} med={med} now={now} /> : null
@@ -280,12 +375,12 @@ export const TodayView = () => {
           )}
 
           {asNeeded.length > 0 && (
-            <GlassCard className="p-5" delay={260}>
-              <div className="mb-3">
+            <GlassCard className="p-5 sm:p-6" delay={260}>
+              <div className="mb-4">
                 <h2 className="text-base font-semibold text-white">{t('today.asNeeded')}</h2>
                 <p className="text-xs text-slate-400">{t('today.asNeededHint')}</p>
               </div>
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {asNeeded.map((m) => (
                   <AsNeededRow key={m.id} med={m} />
                 ))}
@@ -294,6 +389,8 @@ export const TodayView = () => {
           )}
         </div>
       </div>
+
+      {notesOpen && <NotesHistoryModal onClose={() => setNotesOpen(false)} />}
     </>
   )
 }

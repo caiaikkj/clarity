@@ -151,12 +151,12 @@ export const Modal = ({ title, subtitle, onClose, children, footer, wide, heavyB
     >
       <div
         className={cx(
-          'glass flex max-h-[92dvh] w-full animate-pop flex-col !rounded-b-none sm:!rounded-b-[28px]',
+          'glass flex max-h-[92dvh] w-full animate-sheet flex-col !rounded-b-none sm:animate-pop sm:!rounded-b-[28px]',
           heavyBlur ? '!bg-slate-900/45' : '!bg-slate-900/60',
           wide ? 'sm:max-w-2xl' : 'sm:max-w-lg',
         )}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-white/10 px-6 pb-4 pt-5">
+        <header className="flex items-start justify-between gap-4 border-b border-white/10 px-6 pb-4 pt-[max(1.25rem,env(safe-area-inset-top))] sm:pt-5">
           <div>
             <h2 className="text-lg font-semibold tracking-tight text-white">{title}</h2>
             {subtitle && <p className="mt-0.5 text-sm text-slate-400">{subtitle}</p>}
@@ -167,6 +167,60 @@ export const Modal = ({ title, subtitle, onClose, children, footer, wide, heavyB
         </header>
         <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
         {footer && <footer className="safe-bottom flex items-center justify-end gap-2 border-t border-white/10 px-6 pt-4">{footer}</footer>}
+      </div>
+    </div>
+  )
+}
+
+export const ConfirmDialog = ({
+  title,
+  body,
+  confirmLabel,
+  onConfirm,
+  onCancel,
+  danger,
+}: {
+  title: string
+  body: string
+  confirmLabel: string
+  onConfirm: () => void
+  onCancel: () => void
+  danger?: boolean
+}) => {
+  const { t } = useI18n()
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onCancel])
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/55 p-0 animate-fade backdrop-blur-md sm:items-center sm:p-6"
+      onMouseDown={(e) => e.target === e.currentTarget && onCancel()}
+      role="alertdialog"
+      aria-modal="true"
+      aria-label={title}
+    >
+      <div className="glass w-full max-w-md animate-sheet space-y-4 !rounded-b-none !bg-slate-900/70 p-6 sm:animate-pop sm:!rounded-[28px]">
+        <div>
+          <h2 className="text-lg font-semibold text-white">{title}</h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-slate-300">{body}</p>
+        </div>
+        <div className="safe-bottom flex flex-wrap justify-end gap-2">
+          <button type="button" className="btn btn-ghost" onClick={onCancel}>
+            {t('common.cancel')}
+          </button>
+          <button
+            type="button"
+            className={cx('btn', danger ? '!border-rose-300/40 !bg-rose-500/30 text-rose-50' : 'btn-primary')}
+            onClick={onConfirm}
+          >
+            {confirmLabel}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -210,8 +264,8 @@ export const Drawer = ({ title, subtitle, onClose, children }: DrawerProps) => {
       aria-modal="true"
       aria-label={title}
     >
-      <aside className="glass flex max-h-[92dvh] w-full animate-drawer flex-col !rounded-b-none !bg-slate-900/60 sm:max-h-none sm:max-w-md sm:!rounded-b-[28px]">
-        <header className="flex items-start justify-between gap-4 border-b border-white/10 px-6 pb-4 pt-5">
+      <aside className="glass flex max-h-[92dvh] w-full animate-sheet flex-col !rounded-b-none !bg-slate-900/60 sm:max-h-none sm:max-w-md sm:animate-drawer sm:!rounded-b-[28px]">
+        <header className="flex items-start justify-between gap-4 border-b border-white/10 px-6 pb-4 pt-[max(1.25rem,env(safe-area-inset-top))] sm:pt-5">
           <div className="min-w-0">
             <h2 className="truncate text-lg font-semibold tracking-tight text-white">{title}</h2>
             {subtitle && <p className="num mt-0.5 truncate text-sm text-slate-400">{subtitle}</p>}

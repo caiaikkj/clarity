@@ -26,6 +26,7 @@ html,
 body,
 #root {
   min-height: 100%;
+  min-height: 100dvh;
 }
 
 body {
@@ -125,7 +126,7 @@ body {
   }
 
   .field {
-    @apply w-full rounded-2xl border border-white/[0.12] bg-black/20 px-4 py-2.5 text-sm text-slate-100 outline-none transition-all duration-200 ease-smooth placeholder:text-slate-500;
+    @apply w-full rounded-2xl border border-white/[0.12] bg-black/20 px-4 py-3 text-base text-slate-100 outline-none transition-all duration-200 ease-smooth placeholder:text-slate-500;
   }
   .field:focus {
     @apply border-sky-300/50 bg-black/30 shadow-[0_0_0_4px_rgba(56,189,248,0.12)];
@@ -179,6 +180,10 @@ body {
 
 .safe-bottom {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top);
 }
 
 @media (prefers-reduced-motion: reduce) {

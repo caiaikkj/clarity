@@ -3,6 +3,7 @@ import { Copy, ExternalLink, FlaskConical, MapPin, PackagePlus, ShoppingBag, Sto
 import { useI18n } from '../i18n'
 import { brl, parsePrice } from '../lib/format'
 import { useData } from '../lib/store'
+import { useToast } from '../lib/toast'
 import { isLowStock } from '../lib/schedule'
 import { AnimatedCheck, Chip, Drawer, cx } from './ui'
 
@@ -26,6 +27,7 @@ const LinkButton = ({ href, icon, label, hint }: { href: string; icon: ReactNode
 
 export const RefillDrawer = ({ medId, onClose }: { medId: string; onClose: () => void }) => {
   const { data, updateMed, refill } = useData()
+  const { toast } = useToast()
   const { t, lang } = useI18n()
   const med = data.meds.find((m) => m.id === medId)
 
@@ -80,7 +82,16 @@ export const RefillDrawer = ({ medId, onClose }: { medId: string; onClose: () =>
 
   const addStock = (e: FormEvent) => {
     e.preventDefault()
-    if (quantity > 0) refill(med.id, Math.round(quantity))
+    if (quantity > 0) {
+      const n = Math.round(quantity)
+      refill(med.id, n)
+      toast(t('toast.stockAdded', { n }))
+    }
+  }
+
+  const quickAdd = (n: number) => {
+    refill(med.id, n)
+    toast(t('toast.stockAdded', { n }))
   }
 
   return (
@@ -93,6 +104,14 @@ export const RefillDrawer = ({ medId, onClose }: { medId: string; onClose: () =>
             {low ? t('drawer.refillSoon') : ''}
           </Chip>
         </div>
+        <div className="flex flex-wrap gap-1.5">
+          {[10, 30].map((n) => (
+            <button key={n} type="button" onClick={() => quickAdd(n)} className={cx('btn !rounded-full !px-3.5 !py-1.5 text-xs', low && 'btn-primary')}>
+              <PackagePlus className="h-3.5 w-3.5" />
+              {t('cabinet.quickAdd', { n })}
+            </button>
+          ))}
+        </div>
         <form onSubmit={addStock} className="glass-soft flex items-center gap-2 p-2 pl-4">
           <label htmlFor="drawer-qty" className="shrink-0 text-xs text-slate-400">
             {t('drawer.bought')}
@@ -103,7 +122,7 @@ export const RefillDrawer = ({ medId, onClose }: { medId: string; onClose: () =>
             min={1}
             value={quantity}
             onChange={(e) => setQuantity(Number(e.target.value))}
-            className="num min-w-0 flex-1 bg-transparent text-sm text-white outline-none"
+            className="num min-w-0 flex-1 bg-transparent text-base text-white outline-none"
           />
           <button type="submit" className={cx('btn !px-4 !py-1.5 text-xs', low && 'btn-primary')}>
             <PackagePlus className="h-3.5 w-3.5" />
