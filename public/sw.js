@@ -1,8 +1,11 @@
-const CACHE_NAME = 'clarity-shell-v1'
-const SHELL_URL = '/index.html'
-const STATIC_URLS = ['/', SHELL_URL, '/manifest.json', '/favicon.svg', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png']
-const ASSET_PATTERN = /(?:src|href)="(\/assets\/[^"]+)"/g
-const CSS_URL_PATTERN = /url\((\/assets\/[^)"']+)\)/g
+const CACHE_NAME = 'clarity-shell-v4'
+const BASE = new URL('./', self.location).pathname
+const SHELL_URL = `${BASE}index.html`
+const STATIC_URLS = ['', 'manifest.json', 'favicon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'data/cmed.json', 'data/cmed-eans.json'].map(
+  (path) => `${BASE}${path}`,
+)
+const ASSET_PATTERN = /(?:src|href)="([^"]*\/assets\/[^"]+)"/g
+const CSS_URL_PATTERN = /url\(([^)"']*\/assets\/[^)"']+)\)/g
 
 const collect = (text, pattern) => [...text.matchAll(pattern)].map((match) => match[1])
 
@@ -11,7 +14,7 @@ const precache = async () => {
   const shellResponse = await fetch(SHELL_URL, { cache: 'reload' })
   const html = await shellResponse.clone().text()
   await cache.put(SHELL_URL, shellResponse.clone())
-  await cache.put('/', shellResponse)
+  await cache.put(BASE, shellResponse)
 
   const assets = collect(html, ASSET_PATTERN)
   const styles = assets.filter((url) => url.endsWith('.css'))
@@ -23,7 +26,7 @@ const precache = async () => {
     }),
   )
 
-  const rest = [...new Set([...assets.filter((url) => !url.endsWith('.css')), ...nested.flat(), ...STATIC_URLS.slice(2)])]
+  const rest = [...new Set([...assets.filter((url) => !url.endsWith('.css')), ...nested.flat(), ...STATIC_URLS.slice(1)])]
   await Promise.all(rest.map((url) => cache.add(url).catch(() => undefined)))
 }
 

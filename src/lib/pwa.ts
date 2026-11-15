@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 export const registerServiceWorker = () => {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => undefined)
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => undefined)
   })
 }
 
