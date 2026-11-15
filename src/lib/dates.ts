@@ -56,12 +56,21 @@ export const formatDateTime = (iso: string, lang: Lang) => {
 export const formatLongDate = (d: Date, lang: Lang) =>
   d.toLocaleDateString(lang, { weekday: 'long', month: 'long', day: 'numeric' })
 export const formatCountdown = (minutes: number) => {
-  const abs = Math.abs(minutes)
-  const h = Math.floor(abs / 60)
-  const m = Math.round(abs % 60)
+  const total = Math.round(Math.abs(minutes))
+  const h = Math.floor(total / 60)
+  const m = total % 60
   if (h === 0) return `${m}m`
   return `${h}h ${pad(m)}m`
 }
+
+export const formatShiftDelta = (minutes: number) => {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (h === 0) return `+${m}m`
+  return m === 0 ? `+${h}h` : `+${h}h ${m}m`
+}
+
+export const formatHours = (hours: number, lang: Lang) => `${lang === 'pt-BR' ? String(hours).replace('.', ',') : hours}h`
 
 export const greeting = (d: Date, lang: Lang) => {
   const h = d.getHours()

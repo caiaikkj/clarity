@@ -29,6 +29,7 @@ export const GUIDE: Record<Lang, GuideContent> = {
         title: 'Hoje',
         items: [
           'A linha do tempo é dividida em Manhã, Tarde, Noite e Se necessário. Toque em Marcar como tomado para registrar uma dose; use Desfazer se errar.',
+          'Reagendamento inteligente: se você tomar um item atrasado e outra dose de hoje precisa de intervalo de absorção (ex.: magnésio e levotiroxina), o horário dele é adiado automaticamente e um selo explica o motivo. Toque em Restaurar horário para voltar ao original.',
           'Para remédios Se necessário, use Registrar dose só quando tomar.',
           'Os cartões mostram doses de hoje, sequência de dias, aderência e a próxima dose. Um aviso aparece quando o estoque está acabando.',
           'A barra de anotação rápida no topo é o seu "brain dump": escreva algo como "Tomei magnésio às 22h, dormi bem" ou "dor de cabeça depois do café". O Clarity identifica medicamentos, sintomas e hábitos, e marca a dose como tomada quando você diz que tomou.',
@@ -44,7 +45,7 @@ export const GUIDE: Record<Lang, GuideContent> = {
         ],
       },
       {
-        title: 'Segundo Cérebro',
+        title: 'Insights',
         items: [
           'O mapa conecta medicamentos, sintomas e hábitos. Arraste os nós e toque para ver as conexões e as notas relacionadas.',
           'O verificador de interações analisa cada par de itens ativos e fatores como álcool e cafeína. Os selos mostram a gravidade; "Espaçar doses" indica quantas horas separar.',
@@ -99,6 +100,7 @@ export const GUIDE: Record<Lang, GuideContent> = {
         title: 'Today',
         items: [
           'The timeline is split into Morning, Afternoon, Night and As needed. Tap Mark Taken to log a dose; use Undo if you tapped by mistake.',
+          'Smart rescheduling: if you take an item late and another dose today needs an absorption gap (e.g. magnesium and levothyroxine), its time is pushed back automatically and a badge explains why. Tap Restore time to go back to the original.',
           'For As needed items, tap Log dose only when you actually take one.',
           'The cards show doses today, your streak, adherence and the next dose. A banner appears when stock is running low.',
           'The quick note bar at the top is your brain dump: write things like "Took magnesium at 10pm, slept great" or "headache after coffee". Clarity detects medications, symptoms and habits, and marks the dose as taken when you say you took it.',
@@ -114,7 +116,7 @@ export const GUIDE: Record<Lang, GuideContent> = {
         ],
       },
       {
-        title: 'Second Brain',
+        title: 'Insights',
         items: [
           'The graph connects medications, symptoms and habits. Drag nodes and tap one to see its connections and related notes.',
           'The interaction checker reviews every pair of active items plus factors like alcohol and caffeine. Badges show severity; "Space Doses" tells you how many hours to separate them.',

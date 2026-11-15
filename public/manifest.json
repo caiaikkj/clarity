@@ -1,7 +1,7 @@
 {
-  "name": "Clarity — Health & Medication Second Brain",
+  "name": "Clarity — Clareza na sua rotina de saúde",
   "short_name": "Clarity",
-  "description": "Personal health and medication second brain: schedule, interactions, refills and doctor briefings.",
+  "description": "Clareza na sua rotina de saúde: doses, interações, reposição e relatórios para consultas.",
   "id": "./",
   "start_url": "./",
   "scope": "./",

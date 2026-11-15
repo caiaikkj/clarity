@@ -42,6 +42,8 @@ export interface Medication {
   pmc?: number
   lastPharmacy?: string
   lastPaidAt?: string
+  spacingHours?: number
+  spacingTarget?: string
 }
 
 export interface SpacingInfo {
@@ -72,10 +74,24 @@ export interface Note {
   doseLogged?: boolean
 }
 
+export interface DoseShift {
+  doseId: string
+  medId: string
+  date: string
+  fromTime: string
+  toTime: string
+  hours: number
+  causeDoseId: string
+  causeMedId: string
+  causeName: string
+  causeTakenAt: string
+}
+
 export interface AppData {
   meds: Medication[]
   logs: DoseLog[]
   notes: Note[]
+  shifts?: DoseShift[]
 }
 
 export interface Settings {
@@ -88,7 +104,9 @@ export interface Dose {
   medId: string
   date: string
   time: string
+  baseTime: string
   log?: DoseLog
+  shift?: DoseShift
 }
 
 export type TimeBlock = 'morning' | 'afternoon' | 'night'

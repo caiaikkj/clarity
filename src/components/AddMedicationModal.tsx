@@ -12,6 +12,7 @@ import { type ScannedMedication, identifyBarcodeWithGemini, scanMedicationWithGe
 import { asCategory, parsePrescriptionText } from '../lib/prescriptionParser'
 import { brl, parsePrice } from '../lib/format'
 import { defaultTimes } from '../lib/schedule'
+import { isValidSpacingHours } from '../lib/rescheduler'
 import { useGeminiConfig } from '../lib/useGemini'
 import { BarcodeResultCard, type BarcodeResult } from './BarcodeResultCard'
 import { BarcodeScanner } from './BarcodeScanner'
@@ -104,6 +105,8 @@ export const AddMedicationModal = () => {
   const [adminRule, setAdminRule] = useState('')
   const [price, setPrice] = useState('')
   const [pharmacy, setPharmacy] = useState('')
+  const [spacingHours, setSpacingHours] = useState('')
+  const [spacingTarget, setSpacingTarget] = useState('')
   const [pmc, setPmc] = useState<number | undefined>()
   const [barcode, setBarcode] = useState<BarcodeResult | null>(null)
   const [barcodeBusy, setBarcodeBusy] = useState(false)
@@ -301,8 +304,13 @@ export const AddMedicationModal = () => {
   const priceValue = parsePrice(price)
   const priceInvalid = price.trim() !== '' && priceValue === null
 
+  const spacingValue = Number(spacingHours.replace(',', '.'))
+  const spacingFilled = spacingHours.trim() !== '' || spacingTarget.trim() !== ''
+  const spacingValid = isValidSpacingHours(spacingValue) && spacingTarget.trim() !== ''
+  const spacingInvalid = spacingFilled && !spacingValid
+
   const save = () => {
-    if (!name.trim() || priceInvalid) return
+    if (!name.trim() || priceInvalid || spacingInvalid) return
     addMed({
       name: name.trim(),
       strength: strength.trim(),
@@ -319,6 +327,8 @@ export const AddMedicationModal = () => {
       fda,
       activeIngredient: activeIngredient.trim() || undefined,
       adminRule: adminRule.trim() || undefined,
+      spacingHours: spacingValid ? spacingValue : undefined,
+      spacingTarget: spacingValid ? spacingTarget.trim() : undefined,
       lastPaidPrice: priceValue ?? undefined,
       pmc,
       lastPharmacy: pharmacy.trim() || undefined,
@@ -343,7 +353,7 @@ export const AddMedicationModal = () => {
           <button type="button" className="btn btn-ghost" onClick={close}>
             {t('common.cancel')}
           </button>
-          <button type="button" className="btn btn-primary" onClick={save} disabled={!name.trim() || (!asNeeded && times.length === 0)}>
+          <button type="button" className="btn btn-primary" onClick={save} disabled={!name.trim() || (!asNeeded && times.length === 0) || spacingInvalid}>
             <Plus className="h-4 w-4" />
             {t('add.submit')}
           </button>
@@ -654,6 +664,36 @@ export const AddMedicationModal = () => {
               })}
             </div>
           </div>
+          <div className="grid gap-3 sm:grid-cols-[140px_1fr]">
+            <div>
+              <label className="label" htmlFor="med-spacing-hours">
+                {t('add.spacingHours')}
+              </label>
+              <input
+                id="med-spacing-hours"
+                inputMode="decimal"
+                className={cx('field num', spacingInvalid && '!border-rose-300/60')}
+                value={spacingHours}
+                onChange={(e) => setSpacingHours(e.target.value)}
+                placeholder={t('add.spacingHoursPlaceholder')}
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="med-spacing-target">
+                {t('add.spacingTarget')}
+              </label>
+              <input
+                id="med-spacing-target"
+                className={cx('field', spacingInvalid && '!border-rose-300/60')}
+                value={spacingTarget}
+                onChange={(e) => setSpacingTarget(e.target.value)}
+                placeholder={t('add.spacingTargetPlaceholder')}
+              />
+            </div>
+          </div>
+          <p className={cx('text-xs', spacingInvalid ? 'text-rose-300' : 'text-slate-500')}>
+            {spacingInvalid ? t('add.spacingInvalid') : t('add.spacingHint')}
+          </p>
           <div className="grid gap-3 sm:grid-cols-[140px_1fr]">
             <div>
               <label className="label" htmlFor="med-price">

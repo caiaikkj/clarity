@@ -1,4 +1,4 @@
-import type { Dose, DoseLog, Medication, TimeBlock } from '../types'
+import type { Dose, DoseLog, DoseShift, Medication, TimeBlock } from '../types'
 import type { Lang } from '../i18n/translations'
 import { translate } from '../i18n/translations'
 import { addDays, dateKey, minutesOf } from './dates'
@@ -12,14 +12,17 @@ export const blockOf = (time: string): TimeBlock => {
   return 'night'
 }
 
-export const dosesForDate = (meds: Medication[], logs: DoseLog[], date: string): Dose[] => {
+export const dosesForDate = (meds: Medication[], logs: DoseLog[], date: string, shifts: DoseShift[] = []): Dose[] => {
   const byId = new Map(logs.map((l) => [l.id, l]))
+  const shiftById = new Map(shifts.filter((s) => s.date === date).map((s) => [s.doseId, s]))
   const doses: Dose[] = []
   meds.forEach((m) => {
     if (m.asNeeded || m.startDate > date) return
-    m.times.forEach((time) => {
-      const id = doseId(m.id, date, time)
-      doses.push({ id, medId: m.id, date, time, log: byId.get(id) })
+    m.times.forEach((baseTime) => {
+      const id = doseId(m.id, date, baseTime)
+      const log = byId.get(id)
+      const shift = log ? undefined : shiftById.get(id)
+      doses.push({ id, medId: m.id, date, time: shift?.toTime ?? baseTime, baseTime, log, shift })
     })
   })
   return doses.sort((a, b) => minutesOf(a.time) - minutesOf(b.time))
@@ -48,14 +51,14 @@ export interface Adherence {
   pct: number
 }
 
-export const adherence = (meds: Medication[], logs: DoseLog[], days: number, now: Date): Adherence => {
+export const adherence = (meds: Medication[], logs: DoseLog[], days: number, now: Date, shifts: DoseShift[] = []): Adherence => {
   let taken = 0
   let expected = 0
   const today = dateKey(now)
   const nowMinutes = now.getHours() * 60 + now.getMinutes()
   for (let i = 0; i < days; i++) {
     const key = dateKey(addDays(now, -i))
-    dosesForDate(meds, logs, key).forEach((d) => {
+    dosesForDate(meds, logs, key, shifts).forEach((d) => {
       if (key === today && !d.log && minutesOf(d.time) > nowMinutes) return
       expected++
       if (d.log) taken++

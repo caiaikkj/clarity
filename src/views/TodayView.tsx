@@ -9,6 +9,7 @@ import { AdherenceRing } from '../components/AdherenceRing'
 import { BrainDumpBar } from '../components/BrainDumpBar'
 import { MedBadges } from '../components/MedBadges'
 import { NoteCard } from '../components/NoteCard'
+import { ShiftBadge } from '../components/ShiftBadge'
 import { AnimatedCheck, Chip, EmptyState, GlassCard, PageHeader, cx } from '../components/ui'
 
 const BLOCKS: TimeBlock[] = ['morning', 'afternoon', 'night']
@@ -71,6 +72,7 @@ const DoseCard = ({ dose, med, now }: { dose: Dose; med: Medication; now: Date }
             <span className="num text-sky-300">{t('today.takenAt', { time: formatClock(toTimeString(new Date(dose.log.takenAt)), lang) })}</span>
           )}
         </div>
+        {dose.shift && !taken && <ShiftBadge shift={dose.shift} medName={med.name} className="mt-2" />}
         <MedBadges med={med} className="mt-2" />
       </div>
 
@@ -128,10 +130,10 @@ export const TodayView = () => {
   const now = useNow(15_000)
   const today = dateKey(now)
 
-  const doses = dosesForDate(data.meds, data.logs, today)
+  const doses = dosesForDate(data.meds, data.logs, today, data.shifts)
   const done = doses.filter((d) => d.log).length
   const streakDays = streak(data.meds, data.logs, now)
-  const week = adherence(data.meds, data.logs, 7, now)
+  const week = adherence(data.meds, data.logs, 7, now, data.shifts)
   const next = nextDose(doses, now)
   const medById = new Map(data.meds.map((m) => [m.id, m]))
   const asNeeded = data.meds.filter((m) => m.asNeeded)

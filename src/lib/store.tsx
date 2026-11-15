@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 import type { AppData, Dose, DoseLog, Medication, ModalId, Note, ParsedNote, Settings, ViewId } from '../types'
 import { DEFAULT_MODEL, MODEL_OPTIONS } from './gemini'
 import { dateKey, minutesOf } from './dates'
+import { rescheduleAfterTake } from './rescheduler'
 import { doseId, dosesForDate } from './schedule'
 import { uid } from './id'
 
@@ -13,6 +14,7 @@ const EMPTY_DATA: AppData = { meds: [], logs: [], notes: [] }
 type Action =
   | { type: 'take'; medId: string; date: string; time: string; takenAt: string }
   | { type: 'undo'; doseId: string }
+  | { type: 'restoreShift'; doseId: string }
   | { type: 'prn'; medId: string; takenAt: string }
   | { type: 'addMed'; med: Medication }
   | { type: 'removeMed'; id: string }
@@ -34,7 +36,9 @@ const reducer = (state: AppData, action: Action): AppData => {
       const med = state.meds.find((m) => m.id === action.medId)
       if (!med) return state
       const log: DoseLog = { id, medId: action.medId, date: action.date, time: action.time, takenAt: action.takenAt }
-      return { ...state, logs: [...state.logs, log], meds: adjustStock(state.meds, med.id, -med.pillsPerDose) }
+      const next = { ...state, logs: [...state.logs, log], meds: adjustStock(state.meds, med.id, -med.pillsPerDose) }
+      const shifts = rescheduleAfterTake(next, { medId: action.medId, date: action.date, baseTime: action.time }, new Date(action.takenAt))
+      return { ...next, shifts: shifts.filter((s) => s.doseId !== id) }
     }
     case 'undo': {
       const log = state.logs.find((l) => l.id === action.doseId)
@@ -44,8 +48,11 @@ const reducer = (state: AppData, action: Action): AppData => {
         ...state,
         logs: state.logs.filter((l) => l.id !== action.doseId),
         meds: med ? adjustStock(state.meds, med.id, med.pillsPerDose) : state.meds,
+        shifts: (state.shifts ?? []).filter((s) => s.causeDoseId !== action.doseId),
       }
     }
+    case 'restoreShift':
+      return { ...state, shifts: (state.shifts ?? []).filter((s) => s.doseId !== action.doseId) }
     case 'prn': {
       const med = state.meds.find((m) => m.id === action.medId)
       if (!med) return state
@@ -65,6 +72,7 @@ const reducer = (state: AppData, action: Action): AppData => {
     case 'removeMed':
       return {
         meds: state.meds.filter((m) => m.id !== action.id),
+        shifts: (state.shifts ?? []).filter((s) => s.medId !== action.id && s.causeMedId !== action.id),
         logs: state.logs.filter((l) => l.medId !== action.id),
         notes: state.notes.map((n) => ({
           ...n,
@@ -94,11 +102,11 @@ const reducer = (state: AppData, action: Action): AppData => {
           next = reducer(next, { type: 'prn', medId, takenAt: note.occurredAt })
           return
         }
-        const open = dosesForDate(next.meds, next.logs, key)
+        const open = dosesForDate(next.meds, next.logs, key, next.shifts)
           .filter((d) => d.medId === medId && !d.log)
           .sort((a, b) => Math.abs(minutesOf(a.time) - minutes) - Math.abs(minutesOf(b.time) - minutes))[0]
         if (open) {
-          next = reducer(next, { type: 'take', medId, date: key, time: open.time, takenAt: note.occurredAt })
+          next = reducer(next, { type: 'take', medId, date: key, time: open.baseTime, takenAt: note.occurredAt })
         }
       })
       return { ...next, notes: next.notes.map((n) => (n.id === note.id ? { ...n, doseLogged: true } : n)) }
@@ -113,7 +121,10 @@ const loadData = (): AppData => {
     const raw = localStorage.getItem(DATA_KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as AppData
-      if (Array.isArray(parsed.meds) && Array.isArray(parsed.logs) && Array.isArray(parsed.notes)) return parsed
+      if (Array.isArray(parsed.meds) && Array.isArray(parsed.logs) && Array.isArray(parsed.notes)) {
+        const today = dateKey(new Date())
+        return { ...parsed, shifts: (Array.isArray(parsed.shifts) ? parsed.shifts : []).filter((s) => s.date === today) }
+      }
     }
   } catch {
     localStorage.removeItem(DATA_KEY)
@@ -138,8 +149,9 @@ interface DataApi {
   data: AppData
   settings: Settings
   setSettings: (next: Settings) => void
-  take: (dose: Pick<Dose, 'medId' | 'date' | 'time'>) => void
+  take: (dose: Pick<Dose, 'medId' | 'date' | 'baseTime'>) => void
   undo: (id: string) => void
+  restoreShift: (doseId: string) => void
   logAsNeeded: (medId: string) => void
   addMed: (med: Omit<Medication, 'id' | 'startDate'>) => void
   removeMed: (id: string) => void
@@ -182,8 +194,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       data,
       settings,
       setSettings,
-      take: (dose) => dispatch({ type: 'take', ...dose, takenAt: new Date().toISOString() }),
+      take: (dose) => dispatch({ type: 'take', medId: dose.medId, date: dose.date, time: dose.baseTime, takenAt: new Date().toISOString() }),
       undo: (id) => dispatch({ type: 'undo', doseId: id }),
+      restoreShift: (id) => dispatch({ type: 'restoreShift', doseId: id }),
       logAsNeeded: (medId) => dispatch({ type: 'prn', medId, takenAt: new Date().toISOString() }),
       addMed: (med) =>
         dispatch({ type: 'addMed', med: { ...med, id: uid('med'), startDate: dateKey(new Date()) } }),
