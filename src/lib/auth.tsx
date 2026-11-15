@@ -7,11 +7,11 @@ import {
   SYNC_DEBOUNCE_MS,
   authRedirectTo,
   fetchCloudState,
-  isAppData,
   isNonEmptyAppData,
-  sanitizeAppData,
+  migrateAppData,
   upsertCloudState,
 } from './cloudSync'
+import { dataFingerprint } from './migrate'
 import { useData } from './store'
 import { supabase } from './supabase'
 
@@ -30,6 +30,7 @@ interface AuthApi {
   conflict: CloudConflict | null
   error: string | null
   magicSent: boolean
+  signupSent: boolean
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string) => Promise<void>
   sendMagicLink: (email: string) => Promise<void>
@@ -39,11 +40,10 @@ interface AuthApi {
   keepLocal: () => Promise<void>
   clearError: () => void
   clearMagicSent: () => void
+  clearSignupSent: () => void
 }
 
 const AuthContext = createContext<AuthApi | null>(null)
-
-const fingerprint = (data: AppData) => JSON.stringify({ meds: data.meds, logs: data.logs, notes: data.notes })
 
 const authMessage = (error: unknown, lang: 'pt-BR' | 'en-US') => {
   if (error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string') {
@@ -63,6 +63,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [conflict, setConflict] = useState<CloudConflict | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [magicSent, setMagicSent] = useState(false)
+  const [signupSent, setSignupSent] = useState(false)
 
   const dataRef = useRef(data)
   const userRef = useRef(user)
@@ -76,6 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const clearError = useCallback(() => setError(null), [])
   const clearMagicSent = useCallback(() => setMagicSent(false), [])
+  const clearSignupSent = useCallback(() => setSignupSent(false), [])
 
   const pushState = useCallback(async (userId: string, next: AppData) => {
     if (conflictRef.current || syncingRef.current) return
@@ -103,13 +105,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setConflict(null)
       try {
         const row = await fetchCloudState(nextUser.id)
-        const cloudRaw = row?.app_data
-        const cloud = isAppData(cloudRaw) ? sanitizeAppData(cloudRaw) : null
-        const local = sanitizeAppData(dataRef.current)
+        const cloud = row?.app_data == null ? null : migrateAppData(row.app_data)
+        const local = migrateAppData(dataRef.current)
         const cloudHas = cloud !== null && isNonEmptyAppData(cloud)
         const localHas = isNonEmptyAppData(local)
 
-        if (cloudHas && localHas && fingerprint(cloud) !== fingerprint(local)) {
+        if (cloudHas && localHas && dataFingerprint(cloud) !== dataFingerprint(local)) {
           setConflict({ cloud, updatedAt: row?.updated_at ?? null })
           setSyncStatus('conflict')
           return
@@ -123,7 +124,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return
         }
 
-        if (!cloudHas || (cloud && fingerprint(cloud) !== fingerprint(local))) {
+        if (!cloudHas || (cloud && dataFingerprint(cloud) !== dataFingerprint(local))) {
           const updatedAt = await upsertCloudState(nextUser.id, local)
           setLastSyncedAt(updatedAt)
           setSyncStatus('synced')
@@ -154,9 +155,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setLastSyncedAt(null)
         setError(null)
         setMagicSent(false)
+        setSignupSent(false)
         return
       }
       if (next && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED')) {
+        setSignupSent(false)
+        setMagicSent(false)
         void reconcile(next)
       }
     })
@@ -179,6 +183,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     async (email: string, password: string) => {
       setError(null)
       setMagicSent(false)
+      setSignupSent(false)
       const { error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
       if (authError) throw new Error(authMessage(authError, lang))
     },
@@ -189,12 +194,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     async (email: string, password: string) => {
       setError(null)
       setMagicSent(false)
-      const { error: authError } = await supabase.auth.signUp({
+      setSignupSent(false)
+      const { data, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: { emailRedirectTo: authRedirectTo() },
       })
       if (authError) throw new Error(authMessage(authError, lang))
+      if (!data.session) setSignupSent(true)
     },
     [lang],
   )
@@ -202,6 +209,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const sendMagicLink = useCallback(
     async (email: string) => {
       setError(null)
+      setSignupSent(false)
       const { error: authError } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: { emailRedirectTo: authRedirectTo() },
@@ -255,6 +263,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       conflict,
       error,
       magicSent,
+      signupSent,
       signIn,
       signUp,
       sendMagicLink,
@@ -264,6 +273,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       keepLocal,
       clearError,
       clearMagicSent,
+      clearSignupSent,
     }),
     [
       user,
@@ -273,6 +283,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       conflict,
       error,
       magicSent,
+      signupSent,
       signIn,
       signUp,
       sendMagicLink,
@@ -282,6 +293,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       keepLocal,
       clearError,
       clearMagicSent,
+      clearSignupSent,
     ],
   )
 

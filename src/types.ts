@@ -2,6 +2,7 @@ export type Category = 'prescription' | 'supplement' | 'otc'
 export type Severity = 'safe' | 'monitor' | 'caution'
 export type ViewId = 'today' | 'cabinet' | 'brain' | 'briefing'
 export type ModalId = 'add' | 'settings' | 'guide' | 'cloud' | null
+export type MixVerdict = 'safe' | 'space' | 'avoid'
 
 export interface FdaInfo {
   source: 'openFDA' | 'gemini' | 'none'
@@ -55,6 +56,9 @@ export interface Medication {
   spacingHours?: number
   spacingTarget?: string
   leafletSummary?: LeafletCache
+  temporary?: boolean
+  courseDays?: number
+  courseArchivedAt?: string
 }
 
 export interface SpacingInfo {

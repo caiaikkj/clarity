@@ -12,6 +12,7 @@ import {
   symptomPatterns,
   type WindowStat,
 } from '../lib/insights'
+import { isActiveCabinetMed } from '../lib/course'
 import { useData } from '../lib/store'
 import { useGeminiConfig } from '../lib/useGemini'
 import { Chip, Spinner, cx } from './ui'
@@ -76,9 +77,10 @@ export const PatternInsights = () => {
   const [ai, setAi] = useState<AiState>({ status: 'idle' })
   const controller = useRef<AbortController>()
 
-  const windowInsight = useMemo(() => adherenceWindowInsight(data.meds, data.logs, new Date()), [data.meds, data.logs])
+  const activeMeds = useMemo(() => data.meds.filter(isActiveCabinetMed), [data.meds])
+  const windowInsight = useMemo(() => adherenceWindowInsight(activeMeds, data.logs, new Date()), [activeMeds, data.logs])
   const patterns = useMemo(() => symptomPatterns(data.logs, data.notes, new Date(), lang), [data.logs, data.notes, lang])
-  const medName = useMemo(() => new Map(data.meds.map((m) => [m.id, m.name])), [data.meds])
+  const medName = useMemo(() => new Map(activeMeds.map((m) => [m.id, m.name])), [activeMeds])
 
   useEffect(() => () => controller.current?.abort(), [])
 
@@ -89,7 +91,7 @@ export const PatternInsights = () => {
     controller.current = ctl
     setAi({ status: 'loading' })
     try {
-      const digest = buildAiDigest(data.meds, data.logs, data.notes, new Date(), gemini.language)
+      const digest = buildAiDigest(activeMeds, data.logs, data.notes, new Date(), gemini.language)
       const observations = await generateInsightObservations(gemini, digest, ctl.signal)
       if (!ctl.signal.aborted) setAi({ status: 'done', lang: gemini.language, observations })
     } catch (err) {

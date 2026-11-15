@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { CheckCircle2, Cloud, ExternalLink, Eye, EyeOff, KeyRound, ShieldCheck, Trash2 } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { CheckCircle2, Cloud, Download, ExternalLink, Eye, EyeOff, KeyRound, ShieldCheck, Trash2, Upload } from 'lucide-react'
 import { useI18n } from '../i18n'
 import { useAuth } from '../lib/auth'
 import { useData, useUi } from '../lib/store'
@@ -13,12 +13,14 @@ export const SettingsModal = () => {
   const { openModal } = useUi()
   const { t, lang } = useI18n()
   const { user, syncStatus } = useAuth()
-  const { settings, setSettings, clearAll } = useData()
+  const { settings, setSettings, clearAll, exportBackup, importBackup } = useData()
   const [key, setKey] = useState(settings.geminiKey)
   const [model, setModel] = useState(settings.model || DEFAULT_MODEL)
   const [reveal, setReveal] = useState(false)
   const [test, setTest] = useState<Test>({ state: 'idle' })
   const [confirm, setConfirm] = useState(false)
+  const [backupMessage, setBackupMessage] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const close = () => openModal(null)
 
@@ -173,6 +175,52 @@ export const SettingsModal = () => {
           <p className="text-sm leading-relaxed text-slate-400">
             {t('settings.fdaBody')}
           </p>
+        </section>
+
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold text-white">{t('backup.title')}</h3>
+          <p className="text-sm leading-relaxed text-slate-400">{t('backup.body')}</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                const blob = new Blob([exportBackup()], { type: 'application/json' })
+                const url = URL.createObjectURL(blob)
+                const anchor = document.createElement('a')
+                anchor.href = url
+                anchor.download = `clarity-backup-${new Date().toISOString().slice(0, 10)}.json`
+                anchor.click()
+                URL.revokeObjectURL(url)
+                setBackupMessage(t('backup.exported'))
+              }}
+            >
+              <Download className="h-4 w-4" />
+              {t('backup.export')}
+            </button>
+            <button type="button" className="btn" onClick={() => fileRef.current?.click()}>
+              <Upload className="h-4 w-4" />
+              {t('backup.import')}
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ''
+                if (!file) return
+                try {
+                  importBackup(await file.text())
+                  setBackupMessage(t('backup.imported'))
+                } catch {
+                  setBackupMessage(t('backup.importFailed'))
+                }
+              }}
+            />
+          </div>
+          {backupMessage && <p className="text-xs text-sky-200">{backupMessage}</p>}
         </section>
 
         <section className="space-y-3">

@@ -1,6 +1,7 @@
 import type { Dose, DoseLog, DoseShift, Medication, TimeBlock } from '../types'
 import type { Lang } from '../i18n/translations'
 import { translate } from '../i18n/translations'
+import { isMedScheduledOn } from './course'
 import { addDays, dateKey, minutesOf } from './dates'
 
 export const doseId = (medId: string, date: string, time: string) => `${medId}|${date}|${time}`
@@ -17,7 +18,7 @@ export const dosesForDate = (meds: Medication[], logs: DoseLog[], date: string, 
   const shiftById = new Map(shifts.filter((s) => s.date === date).map((s) => [s.doseId, s]))
   const doses: Dose[] = []
   meds.forEach((m) => {
-    if (m.asNeeded || m.startDate > date) return
+    if (m.asNeeded || !isMedScheduledOn(m, date)) return
     m.times.forEach((baseTime) => {
       const id = doseId(m.id, date, baseTime)
       const log = byId.get(id)

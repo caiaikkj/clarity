@@ -10,6 +10,9 @@ interface DrugEntry {
 
 const DRUGS: DrugEntry[] = [
   { names: ['ibuprofen', 'ibuprofeno', 'advil', 'motrin', 'alivium'], classes: ['nsaid'] },
+  { names: ['dipyrone', 'dipirona', 'metamizole', 'metamizol', 'novalgina', 'anador'], classes: ['nsaid'] },
+  { names: ['alcohol', 'alcool', 'álcool', 'cerveja', 'beer', 'wine', 'vinho', 'whisky', 'vodka'], classes: ['alcohol'] },
+  { names: ['coffee', 'cafe', 'café', 'espresso', 'cha verde', 'chá verde', 'green tea', 'mate'], classes: ['caffeine'] },
   { names: ['naproxen', 'naproxeno', 'aleve'], classes: ['nsaid'] },
   { names: ['diclofenac', 'diclofenaco', 'voltaren', 'cataflam'], classes: ['nsaid'] },
   { names: ['aspirin', 'aas', 'acetylsalicylic', 'acido acetilsalicilico', 'ácido acetilsalicílico'], classes: ['nsaid', 'blood_thinner'] },

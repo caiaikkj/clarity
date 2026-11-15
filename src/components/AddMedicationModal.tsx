@@ -93,6 +93,8 @@ export const AddMedicationModal = () => {
   const [form, setForm] = useState('Tablet')
   const [category, setCategory] = useState<Category>('supplement')
   const [asNeeded, setAsNeeded] = useState(false)
+  const [temporary, setTemporary] = useState(false)
+  const [courseDays, setCourseDays] = useState(7)
   const [times, setTimes] = useState<string[]>(['08:00'])
   const [pillsPerDose, setPillsPerDose] = useState(1)
   const [stock, setStock] = useState(30)
@@ -327,6 +329,8 @@ export const AddMedicationModal = () => {
       fda,
       activeIngredient: activeIngredient.trim() || undefined,
       adminRule: adminRule.trim() || undefined,
+      temporary: temporary && !asNeeded,
+      courseDays: temporary && !asNeeded ? Math.max(1, Math.min(90, courseDays)) : undefined,
       spacingHours: spacingValid ? spacingValue : undefined,
       spacingTarget: spacingValid ? spacingTarget.trim() : undefined,
       lastPaidPrice: priceValue ?? undefined,
@@ -579,6 +583,46 @@ export const AddMedicationModal = () => {
                     <Plus className="h-3.5 w-3.5" />
                     {t('add.addTime')}
                   </button>
+                )}
+              </div>
+            )}
+            {!asNeeded && (
+              <div className="mt-4 space-y-3 rounded-2xl border border-violet-300/20 bg-violet-400/[0.07] p-3.5">
+                <button
+                  type="button"
+                  onClick={() => setTemporary(!temporary)}
+                  aria-pressed={temporary}
+                  className={cx(
+                    'btn w-full justify-between !rounded-2xl',
+                    temporary && '!border-violet-300/40 !bg-violet-400/20 text-violet-50',
+                  )}
+                >
+                  <span>{t('course.toggle')}</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    {temporary ? t('course.on') : t('course.off')}
+                  </span>
+                </button>
+                {temporary && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="label" htmlFor="course-days">
+                        {t('course.days')}
+                      </label>
+                      <input
+                        id="course-days"
+                        type="number"
+                        min={1}
+                        max={90}
+                        className="field num"
+                        value={courseDays}
+                        onChange={(e) => setCourseDays(Math.max(1, Math.min(90, Number(e.target.value) || 1)))}
+                      />
+                    </div>
+                    <div>
+                      <p className="label">{t('course.dosesPerDay')}</p>
+                      <p className="mt-2 text-sm text-slate-300">{t('course.dosesHint', { n: times.length })}</p>
+                    </div>
+                  </div>
                 )}
               </div>
             )}

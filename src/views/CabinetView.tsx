@@ -7,10 +7,12 @@ import { useData, useUi } from '../lib/store'
 import { daysOfSupply, frequencyLabel, isLowStock } from '../lib/schedule'
 import { formatClock, formatDateTime } from '../lib/dates'
 import { brl } from '../lib/format'
+import { CourseBadge } from '../components/CourseBadge'
 import { LeafletModal } from '../components/LeafletModal'
 import { MedBadges } from '../components/MedBadges'
 import { RefillDrawer } from '../components/RefillDrawer'
 import { Chip, EmptyState, GlassCard, PageHeader, cx } from '../components/ui'
+import { isActiveCabinetMed, isCourseArchived } from '../lib/course'
 
 const CATEGORY_META: Record<Category, { tone: 'indigo' | 'cyan' | 'slate'; text: string; bg: string }> = {
   prescription: { tone: 'indigo', text: 'text-indigo-200', bg: 'from-indigo-400/30 to-indigo-600/20' },
@@ -119,6 +121,8 @@ const MedCard = ({ med, index, onRefill, onOpenLeaflet }: MedCardProps) => {
         </p>
       )}
 
+      <CourseBadge med={med} logs={data.logs} />
+
       {med.instructions && <p className="text-sm leading-relaxed text-slate-300">{med.instructions}</p>}
 
       {(linked.length > 0 || med.notes) && (
@@ -188,14 +192,17 @@ export const CabinetView = () => {
   const { t } = useI18n()
   const [drawerMedId, setDrawerMedId] = useState<string | null>(null)
   const [leafletMedId, setLeafletMedId] = useState<string | null>(null)
-  const low = data.meds.filter(isLowStock)
-  const sorted = [...data.meds].sort((a, b) => Number(isLowStock(b)) - Number(isLowStock(a)))
+  const [archiveOpen, setArchiveOpen] = useState(false)
+  const active = data.meds.filter(isActiveCabinetMed)
+  const archived = data.meds.filter(isCourseArchived)
+  const low = active.filter(isLowStock)
+  const sorted = [...active].sort((a, b) => Number(isLowStock(b)) - Number(isLowStock(a)))
 
   return (
     <>
       <PageHeader
         title={t('cabinet.title')}
-        subtitle={`${t('cabinet.subtitle', { count: data.meds.length })}${low.length ? ` · ${t('cabinet.needRefill', { n: low.length })}` : ''}`}
+        subtitle={`${t('cabinet.subtitle', { count: active.length })}${low.length ? ` · ${t('cabinet.needRefill', { n: low.length })}` : ''}`}
         actions={
           <button type="button" className="btn btn-primary" onClick={() => openModal('add')}>
             <ScanLine className="h-4 w-4" />
@@ -204,7 +211,7 @@ export const CabinetView = () => {
           </button>
         }
       />
-      {data.meds.length === 0 ? (
+      {active.length === 0 && archived.length === 0 ? (
         <GlassCard>
           <EmptyState
             icon={<PackagePlus className="h-6 w-6" />}
@@ -219,10 +226,34 @@ export const CabinetView = () => {
           />
         </GlassCard>
       ) : (
-        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3">
-          {sorted.map((m, i) => (
-            <MedCard key={m.id} med={m} index={i} onRefill={() => setDrawerMedId(m.id)} onOpenLeaflet={() => setLeafletMedId(m.id)} />
-          ))}
+        <div className="space-y-6">
+          {sorted.length > 0 && (
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3">
+              {sorted.map((m, i) => (
+                <MedCard key={m.id} med={m} index={i} onRefill={() => setDrawerMedId(m.id)} onOpenLeaflet={() => setLeafletMedId(m.id)} />
+              ))}
+            </div>
+          )}
+
+          {archived.length > 0 && (
+            <section className="space-y-3">
+              <button
+                type="button"
+                onClick={() => setArchiveOpen(!archiveOpen)}
+                aria-expanded={archiveOpen}
+                className="btn btn-ghost !rounded-full !px-4 !py-2 text-xs text-slate-300"
+              >
+                {t('course.archiveTitle')} · {archived.length}
+              </button>
+              {archiveOpen && (
+                <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3">
+                  {archived.map((m, i) => (
+                    <MedCard key={m.id} med={m} index={i} onRefill={() => setDrawerMedId(m.id)} onOpenLeaflet={() => setLeafletMedId(m.id)} />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
         </div>
       )}
 

@@ -1,5 +1,5 @@
 import type { AppData } from '../types'
-import { dateKey } from './dates'
+import { isAppData, isNonEmptyAppData, migrateAppData, sanitizeAppData } from './migrate'
 import { supabase } from './supabase'
 
 export const CLOUD_TABLE = 'clarity_user_state'
@@ -10,23 +10,7 @@ export interface CloudStateRow {
   updated_at: string | null
 }
 
-export const isAppData = (value: unknown): value is AppData => {
-  if (!value || typeof value !== 'object') return false
-  const data = value as AppData
-  return Array.isArray(data.meds) && Array.isArray(data.logs) && Array.isArray(data.notes)
-}
-
-export const isNonEmptyAppData = (data: AppData) => data.meds.length > 0 || data.logs.length > 0 || data.notes.length > 0
-
-export const sanitizeAppData = (data: AppData): AppData => {
-  const today = dateKey(new Date())
-  return {
-    meds: data.meds,
-    logs: data.logs,
-    notes: data.notes,
-    shifts: (Array.isArray(data.shifts) ? data.shifts : []).filter((s) => s.date === today),
-  }
-}
+export { isAppData, isNonEmptyAppData, migrateAppData, sanitizeAppData }
 
 export const fetchCloudState = async (userId: string) => {
   const { data, error } = await supabase.from(CLOUD_TABLE).select('app_data, updated_at').eq('user_id', userId).maybeSingle()

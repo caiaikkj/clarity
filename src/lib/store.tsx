@@ -1,15 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react'
 import type { AppData, Dose, DoseLog, Medication, ModalId, Note, ParsedNote, Settings, ViewId } from '../types'
-import { DEFAULT_MODEL, MODEL_OPTIONS } from './gemini'
+import { withArchivedCourses } from './course'
 import { dateKey, minutesOf } from './dates'
+import { DEFAULT_MODEL, MODEL_OPTIONS } from './gemini'
+import { uid } from './id'
+import { EMPTY_DATA, migrateAppData, sanitizeAppData } from './migrate'
 import { rescheduleAfterTake } from './rescheduler'
 import { doseId, dosesForDate } from './schedule'
-import { uid } from './id'
 
 const DATA_KEY = 'clarity:data:v1'
 const SETTINGS_KEY = 'clarity:settings:v1'
-
-const EMPTY_DATA: AppData = { meds: [], logs: [], notes: [] }
 
 type Action =
   | { type: 'take'; medId: string; date: string; time: string; takenAt: string }
@@ -39,7 +39,8 @@ const reducer = (state: AppData, action: Action): AppData => {
       const log: DoseLog = { id, medId: action.medId, date: action.date, time: action.time, dueTime, takenAt: action.takenAt }
       const next = { ...state, logs: [...state.logs, log], meds: adjustStock(state.meds, med.id, -med.pillsPerDose) }
       const shifts = rescheduleAfterTake(next, { medId: action.medId, date: action.date, baseTime: action.time }, new Date(action.takenAt))
-      return { ...next, shifts: shifts.filter((s) => s.doseId !== id) }
+      const withShifts = { ...next, shifts: shifts.filter((s) => s.doseId !== id) }
+      return { ...withShifts, meds: withArchivedCourses(withShifts.meds, withShifts.logs, new Date(action.takenAt)) }
     }
     case 'undo': {
       const log = state.logs.find((l) => l.id === action.doseId)
@@ -120,13 +121,7 @@ const reducer = (state: AppData, action: Action): AppData => {
 const loadData = (): AppData => {
   try {
     const raw = localStorage.getItem(DATA_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw) as AppData
-      if (Array.isArray(parsed.meds) && Array.isArray(parsed.logs) && Array.isArray(parsed.notes)) {
-        const today = dateKey(new Date())
-        return { ...parsed, shifts: (Array.isArray(parsed.shifts) ? parsed.shifts : []).filter((s) => s.date === today) }
-      }
-    }
+    if (raw) return migrateAppData(JSON.parse(raw))
   } catch {
     localStorage.removeItem(DATA_KEY)
   }
@@ -162,7 +157,9 @@ interface DataApi {
   removeNote: (id: string) => void
   logNoteDose: (id: string) => void
   clearAll: () => void
-  replaceData: (data: AppData) => void
+  replaceData: (data: AppData | unknown) => void
+  exportBackup: () => string
+  importBackup: (raw: string) => void
 }
 
 interface UiApi {
@@ -189,6 +186,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
   }, [settings])
 
+  useEffect(() => {
+    const nextMeds = withArchivedCourses(data.meds, data.logs)
+    if (nextMeds.some((med, i) => med.courseArchivedAt !== data.meds[i]?.courseArchivedAt)) {
+      dispatch({ type: 'replace', data: { ...data, meds: nextMeds } })
+    }
+  }, [data])
+
   const setSettings = useCallback((next: Settings) => setSettingsState(next), [])
 
   const api = useMemo<DataApi>(
@@ -200,8 +204,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       undo: (id) => dispatch({ type: 'undo', doseId: id }),
       restoreShift: (id) => dispatch({ type: 'restoreShift', doseId: id }),
       logAsNeeded: (medId) => dispatch({ type: 'prn', medId, takenAt: new Date().toISOString() }),
-      addMed: (med) =>
-        dispatch({ type: 'addMed', med: { ...med, id: uid('med'), startDate: dateKey(new Date()) } }),
+      addMed: (med) => dispatch({ type: 'addMed', med: { ...med, id: uid('med'), startDate: dateKey(new Date()) } }),
       removeMed: (id) => dispatch({ type: 'removeMed', id }),
       refill: (id, quantity) => dispatch({ type: 'refill', id, quantity }),
       updateMed: (id, patch) => dispatch({ type: 'updateMed', id, patch }),
@@ -224,7 +227,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       removeNote: (id) => dispatch({ type: 'removeNote', id }),
       logNoteDose: (id) => dispatch({ type: 'logNoteDose', noteId: id }),
       clearAll: () => dispatch({ type: 'replace', data: EMPTY_DATA }),
-      replaceData: (next) => dispatch({ type: 'replace', data: next }),
+      replaceData: (next) => dispatch({ type: 'replace', data: migrateAppData(next) }),
+      exportBackup: () => JSON.stringify(sanitizeAppData(data), null, 2),
+      importBackup: (raw) => {
+        dispatch({ type: 'replace', data: migrateAppData(JSON.parse(raw) as unknown) })
+      },
     }),
     [data, settings, setSettings],
   )

@@ -39,7 +39,28 @@ export const CloudAuthModal = () => {
   const onPassword = (e: FormEvent) => {
     e.preventDefault()
     if (!email.trim() || !password) return
-    void run(() => (mode === 'signin' ? auth.signIn(email, password) : auth.signUp(email, password)))
+    void run(async () => {
+      if (mode === 'signin') {
+        await auth.signIn(email, password)
+        return
+      }
+      await auth.signUp(email, password)
+      setPassword('')
+    })
+  }
+
+  const resetEmailNotices = () => {
+    setLocalError(null)
+    auth.clearError()
+    auth.clearMagicSent()
+    auth.clearSignupSent()
+  }
+
+  const goToSignIn = () => {
+    resetEmailNotices()
+    setTab('password')
+    setMode('signin')
+    setPassword('')
   }
 
   const onMagic = (e: FormEvent) => {
@@ -53,8 +74,22 @@ export const CloudAuthModal = () => {
 
   return (
     <Modal
-      title={auth.user ? t('cloud.accountTitle') : t('cloud.title')}
-      subtitle={auth.user ? t('cloud.accountSubtitle') : t('cloud.subtitle')}
+      title={
+        auth.user
+          ? t('cloud.accountTitle')
+          : auth.signupSent
+            ? t('cloud.signupSentTitle')
+            : auth.magicSent
+              ? t('cloud.magicSentTitle')
+              : t('cloud.title')
+      }
+      subtitle={
+        auth.user
+          ? t('cloud.accountSubtitle')
+          : auth.signupSent || auth.magicSent
+            ? undefined
+            : t('cloud.subtitle')
+      }
       onClose={close}
       heavyBlur
       footer={
@@ -132,123 +167,140 @@ export const CloudAuthModal = () => {
           </>
         ) : (
           <>
-            <div className="flex gap-1 rounded-full border border-white/10 bg-white/[0.04] p-1">
-              {(
-                [
-                  ['password', 'cloud.tabPassword'],
-                  ['magic', 'cloud.tabMagic'],
-                ] as const
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => {
-                    setTab(id)
-                    setLocalError(null)
-                    auth.clearError()
-                    auth.clearMagicSent()
-                  }}
-                  className={cx(
-                    'flex-1 rounded-full px-3 py-2 text-xs font-semibold transition-colors',
-                    tab === id ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200',
-                  )}
-                >
-                  {t(label)}
+            {auth.signupSent || auth.magicSent ? (
+              <div className="glass-soft animate-pop space-y-4 p-5 text-center">
+                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-300/30 bg-emerald-400/15 text-emerald-200">
+                  <Mail className="h-5 w-5" />
+                </span>
+                <div className="space-y-2">
+                  <h3 className="text-base font-semibold text-white">
+                    {auth.signupSent ? t('cloud.signupSentTitle') : t('cloud.magicSentTitle')}
+                  </h3>
+                  <p className="text-sm leading-relaxed text-slate-300">
+                    {auth.signupSent
+                      ? t('cloud.signupSentBody', { email: email.trim() || '—' })
+                      : t('cloud.magicSentBody', { email: email.trim() || '—' })}
+                  </p>
+                </div>
+                <button type="button" className="btn w-full" onClick={goToSignIn}>
+                  <KeyRound className="h-4 w-4" />
+                  {t('cloud.backToSignIn')}
                 </button>
-              ))}
-            </div>
-
-            {tab === 'password' ? (
-              <form className="space-y-4" onSubmit={onPassword}>
-                <div className="flex gap-1 rounded-full border border-white/10 bg-black/20 p-1">
+              </div>
+            ) : (
+              <>
+                <div className="flex gap-1 rounded-full border border-white/10 bg-white/[0.04] p-1">
                   {(
                     [
-                      ['signin', 'cloud.signIn'],
-                      ['signup', 'cloud.signUp'],
+                      ['password', 'cloud.tabPassword'],
+                      ['magic', 'cloud.tabMagic'],
                     ] as const
                   ).map(([id, label]) => (
                     <button
                       key={id}
                       type="button"
-                      onClick={() => setMode(id)}
+                      onClick={() => {
+                        setTab(id)
+                        resetEmailNotices()
+                      }}
                       className={cx(
-                        'flex-1 rounded-full px-3 py-1.5 text-xs font-semibold',
-                        mode === id ? 'bg-sky-400/20 text-sky-100' : 'text-slate-400',
+                        'flex-1 rounded-full px-3 py-2 text-xs font-semibold transition-colors',
+                        tab === id ? 'bg-white/[0.12] text-white' : 'text-slate-400 hover:text-slate-200',
                       )}
                     >
                       {t(label)}
                     </button>
                   ))}
                 </div>
-                <div>
-                  <label className="label" htmlFor="cloud-email">
-                    {t('cloud.email')}
-                  </label>
-                  <input
-                    id="cloud-email"
-                    type="email"
-                    autoComplete="email"
-                    className="field"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder={t('cloud.emailPlaceholder')}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="label" htmlFor="cloud-password">
-                    {t('cloud.password')}
-                  </label>
-                  <input
-                    id="cloud-password"
-                    type="password"
-                    autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                    className="field"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder={t('cloud.passwordPlaceholder')}
-                    minLength={6}
-                    required
-                  />
-                </div>
-                {error && <p className="text-xs text-rose-300">{error}</p>}
-                <button type="submit" className="btn btn-primary w-full" disabled={busy || !email.trim() || password.length < 6}>
-                  {busy ? <Spinner /> : mode === 'signin' ? <KeyRound className="h-4 w-4" /> : <Cloud className="h-4 w-4" />}
-                  {mode === 'signin' ? t('cloud.signIn') : t('cloud.createAccount')}
-                </button>
-              </form>
-            ) : (
-              <form className="space-y-4" onSubmit={onMagic}>
-                <p className="text-sm leading-relaxed text-slate-400">{t('cloud.magicHint')}</p>
-                <div>
-                  <label className="label" htmlFor="cloud-magic-email">
-                    {t('cloud.email')}
-                  </label>
-                  <input
-                    id="cloud-magic-email"
-                    type="email"
-                    autoComplete="email"
-                    className="field"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value)
-                      auth.clearMagicSent()
-                    }}
-                    placeholder={t('cloud.emailPlaceholder')}
-                    required
-                  />
-                </div>
-                {auth.magicSent && (
-                  <p className="rounded-2xl border border-emerald-300/25 bg-emerald-400/10 px-3.5 py-2.5 text-xs text-emerald-100">
-                    {t('cloud.magicSent')}
-                  </p>
+
+                {tab === 'password' ? (
+                  <form className="space-y-4" onSubmit={onPassword}>
+                    <div className="flex gap-1 rounded-full border border-white/10 bg-black/20 p-1">
+                      {(
+                        [
+                          ['signin', 'cloud.signIn'],
+                          ['signup', 'cloud.signUp'],
+                        ] as const
+                      ).map(([id, label]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => {
+                            setMode(id)
+                            resetEmailNotices()
+                          }}
+                          className={cx(
+                            'flex-1 rounded-full px-3 py-1.5 text-xs font-semibold',
+                            mode === id ? 'bg-sky-400/20 text-sky-100' : 'text-slate-400',
+                          )}
+                        >
+                          {t(label)}
+                        </button>
+                      ))}
+                    </div>
+                    <div>
+                      <label className="label" htmlFor="cloud-email">
+                        {t('cloud.email')}
+                      </label>
+                      <input
+                        id="cloud-email"
+                        type="email"
+                        autoComplete="email"
+                        className="field"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder={t('cloud.emailPlaceholder')}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="label" htmlFor="cloud-password">
+                        {t('cloud.password')}
+                      </label>
+                      <input
+                        id="cloud-password"
+                        type="password"
+                        autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                        className="field"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder={t('cloud.passwordPlaceholder')}
+                        minLength={6}
+                        required
+                      />
+                    </div>
+                    {error && <p className="text-xs text-rose-300">{error}</p>}
+                    <button type="submit" className="btn btn-primary w-full" disabled={busy || !email.trim() || password.length < 6}>
+                      {busy ? <Spinner /> : mode === 'signin' ? <KeyRound className="h-4 w-4" /> : <Cloud className="h-4 w-4" />}
+                      {mode === 'signin' ? t('cloud.signIn') : t('cloud.createAccount')}
+                    </button>
+                  </form>
+                ) : (
+                  <form className="space-y-4" onSubmit={onMagic}>
+                    <p className="text-sm leading-relaxed text-slate-400">{t('cloud.magicHint')}</p>
+                    <div>
+                      <label className="label" htmlFor="cloud-magic-email">
+                        {t('cloud.email')}
+                      </label>
+                      <input
+                        id="cloud-magic-email"
+                        type="email"
+                        autoComplete="email"
+                        className="field"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder={t('cloud.emailPlaceholder')}
+                        required
+                      />
+                    </div>
+                    {error && <p className="text-xs text-rose-300">{error}</p>}
+                    <button type="submit" className="btn btn-primary w-full" disabled={busy || !email.trim()}>
+                      {busy ? <Spinner /> : <Mail className="h-4 w-4" />}
+                      {t('cloud.sendMagic')}
+                    </button>
+                  </form>
                 )}
-                {error && <p className="text-xs text-rose-300">{error}</p>}
-                <button type="submit" className="btn btn-primary w-full" disabled={busy || !email.trim()}>
-                  {busy ? <Spinner /> : <Mail className="h-4 w-4" />}
-                  {t('cloud.sendMagic')}
-                </button>
-              </form>
+              </>
             )}
 
             <p className="flex items-start gap-2 text-xs leading-relaxed text-slate-500">

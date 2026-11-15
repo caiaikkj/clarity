@@ -9,13 +9,14 @@ import { AdherenceRing } from '../components/AdherenceRing'
 import { BrainDumpBar } from '../components/BrainDumpBar'
 import { MedBadges } from '../components/MedBadges'
 import { NoteCard } from '../components/NoteCard'
+import { CourseBadge } from '../components/CourseBadge'
 import { ShiftBadge } from '../components/ShiftBadge'
 import { AnimatedCheck, Chip, EmptyState, GlassCard, PageHeader, cx } from '../components/ui'
 
 const BLOCKS: TimeBlock[] = ['morning', 'afternoon', 'night']
 
 const DoseCard = ({ dose, med, now }: { dose: Dose; med: Medication; now: Date }) => {
-  const { take, undo } = useData()
+  const { take, undo, data } = useData()
   const { t, lang } = useI18n()
   const [pulse, setPulse] = useState(false)
   const timer = useRef<number>()
@@ -73,6 +74,7 @@ const DoseCard = ({ dose, med, now }: { dose: Dose; med: Medication; now: Date }
           )}
         </div>
         {dose.shift && !taken && <ShiftBadge shift={dose.shift} medName={med.name} className="mt-2" />}
+        <CourseBadge med={med} logs={data.logs} className="mt-2" />
         <MedBadges med={med} className="mt-2" />
       </div>
 

@@ -47,10 +47,7 @@ export const GUIDE: Record<Lang, GuideContent> = {
       {
         title: 'Insights',
         items: [
-          'No topo, Padrões Detectados compara sua adesão de manhã, tarde e noite e agrupa sintomas recorrentes das notas, ligando-os a medicamentos tomados nas 4 horas anteriores. Tudo é calculado no aparelho. Com a chave do Gemini, Resumo Inteligente (IA) gera 3 observações dos últimos 14 dias.',
-          'O mapa conecta medicamentos, sintomas e hábitos. Arraste os nós e toque para ver as conexões e as notas relacionadas.',
-          'O verificador de interações analisa cada par de itens ativos e fatores como álcool e cafeína. Os selos mostram a gravidade; "Espaçar doses" indica quantas horas separar.',
-          'Com uma chave do Gemini, o botão de explicação gera um resumo em linguagem simples. As explicações internas aparecem sempre.',
+          'No topo, Posso misturar? checa um remédio, alimento ou bebida avulsa contra o seu esquema. Depois, Padrões Detectados compara adesão e sintomas; o verificador analisa cada par de itens ativos. Com a chave do Gemini, o Resumo Inteligente gera observações dos últimos 14 dias.',
         ],
       },
       {
@@ -120,10 +117,7 @@ export const GUIDE: Record<Lang, GuideContent> = {
       {
         title: 'Insights',
         items: [
-          'At the top, Detected Patterns compares your morning, afternoon and night adherence and groups recurring symptoms from your notes, linking them to medications taken in the previous 4 hours. Everything is computed on your device. With a Gemini key, AI Deep Dive writes 3 observations from the last 14 days.',
-          'The graph connects medications, symptoms and habits. Drag nodes and tap one to see its connections and related notes.',
-          'The interaction checker reviews every pair of active items plus factors like alcohol and caffeine. Badges show severity; "Space Doses" tells you how many hours to separate them.',
-          'With a Gemini key, the explain button writes a plain-language summary. Built-in explanations are always shown.',
+          'At the top, Can I mix this? checks a one-off medication, food or drink against your regimen. Then Detected Patterns compares adherence and symptoms, and the interaction checker reviews every active pair. With a Gemini key, AI Deep Dive writes observations from the last 14 days.',
         ],
       },
       {

@@ -373,6 +373,45 @@ Data: ${digest}`
   return observations
 }
 
+export interface MixGeminiResult {
+  verdict: 'safe' | 'space' | 'avoid'
+  hours?: number | null
+  title?: string
+  explanation?: string
+  advice?: string
+}
+
+export const checkMixWithGemini = async (
+  config: GeminiConfig,
+  query: string,
+  meds: { name: string; strength: string; activeIngredient?: string }[],
+  local: { verdict: string; title: string; explanation: string; known: boolean },
+  signal?: AbortSignal,
+) => {
+  const prompt = `You are a careful clinical pharmacist. A patient asks whether they can take or mix "${query}" with their current regimen.
+
+Current medications: ${JSON.stringify(meds)}
+Local rule engine result (may be incomplete): ${JSON.stringify(local)}
+
+Return JSON only:
+{
+  "verdict": "safe" | "space" | "avoid",
+  "hours": number | null,          // if verdict is "space", suggested separation in hours
+  "title": string,                 // short label
+  "explanation": string,           // max 45 words, plain language
+  "advice": string                 // max 25 words practical tip
+}
+
+Rules:
+- Prefer "space" over "avoid" when timing separation is enough.
+- Never tell the patient to stop a prescribed medication on their own.
+- If unsure, choose the more cautious verdict and say to confirm with a pharmacist.
+- Do not invent medications that are not listed.
+${languageRule(config.language)}`
+  const raw = await callGemini({ ...config, input: [text(prompt)], json: true, temperature: SUMMARY_TEMPERATURE, signal })
+  return parseJson<MixGeminiResult>(raw, config.language)
+}
+
 export const generateNotes = async (config: GeminiConfig, name: string, activeIngredient: string, innEn: string[]) => {
   const prompt = `You are a Brazilian clinical pharmacist. There is no FDA label for "${name}" (active ingredient: ${activeIngredient || innEn.join(', ') || 'unknown'}), for example because it is only sold in Brazil. Write concise pharmacological and interaction notes in ${LANG_NAME[config.language]} for a patient. Be accurate and conservative; if unsure, say so. Return JSON only:
 {
