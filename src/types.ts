@@ -1,7 +1,7 @@
 export type Category = 'prescription' | 'supplement' | 'otc'
 export type Severity = 'safe' | 'monitor' | 'caution'
 export type ViewId = 'today' | 'cabinet' | 'brain' | 'briefing'
-export type ModalId = 'add' | 'settings' | 'guide' | null
+export type ModalId = 'add' | 'settings' | 'guide' | 'cloud' | null
 
 export interface FdaInfo {
   source: 'openFDA' | 'gemini' | 'none'

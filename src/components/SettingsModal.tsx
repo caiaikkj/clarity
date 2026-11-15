@@ -1,16 +1,18 @@
 import { useState } from 'react'
-import { CheckCircle2, ExternalLink, Eye, EyeOff, KeyRound, ShieldCheck, Trash2 } from 'lucide-react'
+import { CheckCircle2, Cloud, ExternalLink, Eye, EyeOff, KeyRound, ShieldCheck, Trash2 } from 'lucide-react'
 import { useI18n } from '../i18n'
+import { useAuth } from '../lib/auth'
 import { useData, useUi } from '../lib/store'
 import { DEFAULT_MODEL, MODEL_OPTIONS, testGeminiKey } from '../lib/gemini'
 import { LanguageToggle } from './LanguageToggle'
-import { Modal, Spinner } from './ui'
+import { Modal, Spinner, cx } from './ui'
 
 type Test = { state: 'idle' } | { state: 'busy' } | { state: 'ok' } | { state: 'error'; message: string }
 
 export const SettingsModal = () => {
   const { openModal } = useUi()
   const { t, lang } = useI18n()
+  const { user, syncStatus } = useAuth()
   const { settings, setSettings, clearAll } = useData()
   const [key, setKey] = useState(settings.geminiKey)
   const [model, setModel] = useState(settings.model || DEFAULT_MODEL)
@@ -66,6 +68,29 @@ export const SettingsModal = () => {
             </div>
             <LanguageToggle className="shrink-0" />
           </div>
+        </section>
+
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Cloud className="h-4 w-4 text-sky-300" />
+            <h3 className="text-sm font-semibold text-white">{t('cloud.settingsTitle')}</h3>
+          </div>
+          <p className="text-sm leading-relaxed text-slate-400">{t('cloud.settingsBody')}</p>
+          <button type="button" className="btn !rounded-full !px-4 !py-2 text-xs" onClick={() => openModal('cloud')}>
+            <span className="relative">
+              <Cloud className="h-3.5 w-3.5 text-sky-300" />
+              {user && (
+                <span
+                  className={cx(
+                    'absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full',
+                    syncStatus === 'synced' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]' : 'bg-amber-400',
+                  )}
+                />
+              )}
+            </span>
+            {user ? t('cloud.pillSignedIn') : t('cloud.pill')}
+          </button>
+          {user?.email && <p className="truncate text-xs text-slate-500">{user.email}</p>}
         </section>
 
         <section className="space-y-3">

@@ -162,6 +162,7 @@ interface DataApi {
   removeNote: (id: string) => void
   logNoteDose: (id: string) => void
   clearAll: () => void
+  replaceData: (data: AppData) => void
 }
 
 interface UiApi {
@@ -223,6 +224,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       removeNote: (id) => dispatch({ type: 'removeNote', id }),
       logNoteDose: (id) => dispatch({ type: 'logNoteDose', noteId: id }),
       clearAll: () => dispatch({ type: 'replace', data: EMPTY_DATA }),
+      replaceData: (next) => dispatch({ type: 'replace', data: next }),
     }),
     [data, settings, setSettings],
   )

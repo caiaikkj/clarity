@@ -65,6 +65,7 @@ export const GUIDE: Record<Lang, GuideContent> = {
         items: [
           'O seletor PT | EN troca a interface e o idioma das respostas da IA. A escolha fica salva.',
           'Em Ajustes, cole sua chave do Google AI Studio e use Testar chave. Sem chave, o app continua funcionando com marcação local.',
+          'Entrar / Nuvem é opcional: com email e senha ou link mágico, o Clarity sincroniza medicamentos, doses e notas na sua conta Supabase. Sem login, tudo continua só no aparelho.',
           'Você pode apagar todos os seus dados em Ajustes a qualquer momento.',
         ],
       },
@@ -78,8 +79,8 @@ export const GUIDE: Record<Lang, GuideContent> = {
       {
         title: 'Privacidade',
         items: [
-          'Seus dados e sua chave ficam apenas neste navegador (localStorage). Textos e fotos só são enviados ao Gemini quando você usa esses recursos.',
-          'O Clarity organiza sua rotina e não substitui orientação médica. Confirme decisões com um farmacêutico ou médico.',
+          'Sem login, seus dados e sua chave ficam apenas neste navegador (localStorage). Com a nuvem ligada, medicamentos, doses e notas também são salvos na sua conta Supabase; a chave do Gemini permanece só no navegador.',
+          'Textos e fotos só são enviados ao Gemini quando você usa esses recursos. O Clarity organiza sua rotina e não substitui orientação médica.',
         ],
       },
     ],
@@ -137,6 +138,7 @@ export const GUIDE: Record<Lang, GuideContent> = {
         items: [
           'The PT | EN switch changes the interface and the language of AI answers. Your choice is saved.',
           'In Settings, paste your Google AI Studio key and press Test key. Without a key the app still works with on-device tagging.',
+          'Sign In / Cloud is optional: with email and password or a magic link, Clarity syncs medications, doses and notes to your Supabase account. Without signing in, everything stays on this device.',
           'You can clear all your data in Settings at any time.',
         ],
       },
@@ -150,8 +152,8 @@ export const GUIDE: Record<Lang, GuideContent> = {
       {
         title: 'Privacy',
         items: [
-          'Your data and key stay only in this browser (localStorage). Text and photos are sent to Gemini only when you use those features.',
-          'Clarity organises your routine and is not medical advice. Confirm decisions with a pharmacist or doctor.',
+          'When signed out, your data and key stay only in this browser (localStorage). With cloud sync on, medications, doses and notes are also saved in your Supabase account; the Gemini key stays in the browser only.',
+          'Text and photos are sent to Gemini only when you use those features. Clarity organises your routine and is not medical advice.',
         ],
       },
     ],

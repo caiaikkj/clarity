@@ -1,8 +1,10 @@
 import { I18nProvider } from './i18n'
+import { AuthProvider } from './lib/auth'
 import { AppProvider, useUi } from './lib/store'
 import { Background } from './components/Background'
 import { Dock, Sidebar, TopBar } from './components/Navigation'
 import { AddMedicationModal } from './components/AddMedicationModal'
+import { CloudAuthModal } from './components/CloudAuthModal'
 import { SettingsModal } from './components/SettingsModal'
 import { GuideModal } from './components/GuideModal'
 import { TodayView } from './views/TodayView'
@@ -29,6 +31,7 @@ const Shell = () => {
       {modal === 'add' && <AddMedicationModal />}
       {modal === 'settings' && <SettingsModal />}
       {modal === 'guide' && <GuideModal />}
+      {modal === 'cloud' && <CloudAuthModal />}
     </>
   )
 }
@@ -36,7 +39,9 @@ const Shell = () => {
 export const App = () => (
   <I18nProvider>
     <AppProvider>
-      <Shell />
+      <AuthProvider>
+        <Shell />
+      </AuthProvider>
     </AppProvider>
   </I18nProvider>
 )

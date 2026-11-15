@@ -1,6 +1,7 @@
-﻿import { BrainCircuit, CalendarCheck2, ClipboardList, HelpCircle, Pill, Settings, Sparkles, WifiOff, type LucideIcon } from 'lucide-react'
+﻿import { BrainCircuit, CalendarCheck2, ClipboardList, Cloud, HelpCircle, Pill, Settings, Sparkles, WifiOff, type LucideIcon } from 'lucide-react'
 import type { ViewId } from '../types'
 import { useI18n, type TKey } from '../i18n'
+import { useAuth } from '../lib/auth'
 import { useOnlineStatus } from '../lib/pwa'
 import { useData, useUi } from '../lib/store'
 import { LanguageToggle } from './LanguageToggle'
@@ -16,8 +17,10 @@ const ITEMS: { id: ViewId; label: TKey; shortLabel: TKey; icon: LucideIcon }[] =
 export const Sidebar = () => {
   const { view, setView, openModal } = useUi()
   const { settings } = useData()
+  const { user, syncStatus } = useAuth()
   const { t } = useI18n()
   const connected = settings.geminiKey.length > 0
+  const cloudSynced = Boolean(user) && syncStatus === 'synced'
 
   return (
     <aside className="no-print glass fixed bottom-4 left-4 top-4 z-30 hidden w-64 flex-col p-4 lg:flex">
@@ -57,6 +60,25 @@ export const Sidebar = () => {
       <div className="mb-3 flex justify-center">
         <LanguageToggle />
       </div>
+
+      <button
+        type="button"
+        onClick={() => openModal('cloud')}
+        className="tactile mb-2 flex w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.08] px-3.5 py-2 text-xs font-semibold text-slate-100 backdrop-blur-md"
+      >
+        <span className="relative">
+          <Cloud className="h-3.5 w-3.5 text-sky-300" />
+          {user && (
+            <span
+              className={cx(
+                'absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full',
+                cloudSynced ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]' : 'bg-amber-400',
+              )}
+            />
+          )}
+        </span>
+        {user ? t('cloud.pillSignedIn') : t('cloud.pill')}
+      </button>
 
       <button
         type="button"
