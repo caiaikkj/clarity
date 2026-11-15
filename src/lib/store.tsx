@@ -35,7 +35,8 @@ const reducer = (state: AppData, action: Action): AppData => {
       if (state.logs.some((l) => l.id === id)) return state
       const med = state.meds.find((m) => m.id === action.medId)
       if (!med) return state
-      const log: DoseLog = { id, medId: action.medId, date: action.date, time: action.time, takenAt: action.takenAt }
+      const dueTime = (state.shifts ?? []).find((s) => s.doseId === id)?.toTime ?? action.time
+      const log: DoseLog = { id, medId: action.medId, date: action.date, time: action.time, dueTime, takenAt: action.takenAt }
       const next = { ...state, logs: [...state.logs, log], meds: adjustStock(state.meds, med.id, -med.pillsPerDose) }
       const shifts = rescheduleAfterTake(next, { medId: action.medId, date: action.date, baseTime: action.time }, new Date(action.takenAt))
       return { ...next, shifts: shifts.filter((s) => s.doseId !== id) }

@@ -1,15 +1,25 @@
-import { useState, type FormEvent } from 'react'
-import { ArrowUp, Sparkles } from 'lucide-react'
+import { useRef, useState, type FormEvent } from 'react'
+import { ArrowUp, Mic, Sparkles } from 'lucide-react'
 import type { Note } from '../types'
-import { useI18n } from '../i18n'
+import { useI18n, type TKey } from '../i18n'
 import { useData } from '../lib/store'
 import { useGeminiConfig } from '../lib/useGemini'
+import { useSpeech, type SpeechFailure } from '../lib/useSpeech'
 import { analyzeNote } from '../lib/noteParser'
 import { NoteTags } from './NoteCard'
 import { Spinner, cx } from './ui'
 import { formatDateTime } from '../lib/dates'
 
 const EXAMPLE_KEYS = ['dump.example1', 'dump.example2', 'dump.example3'] as const
+
+const VOICE_ERROR_KEYS: Record<SpeechFailure, TKey> = {
+  denied: 'dump.mic.denied',
+  'no-microphone': 'dump.mic.missing',
+  network: 'dump.mic.network',
+  unknown: 'dump.mic.failed',
+}
+
+const joinSpeech = (base: string, transcript: string) => [base, transcript].filter(Boolean).join(' ')
 
 export const BrainDumpBar = () => {
   const { data, addNote } = useData()
@@ -19,12 +29,33 @@ export const BrainDumpBar = () => {
   const [warning, setWarning] = useState<string | null>(null)
   const [last, setLast] = useState<Note | null>(null)
 
+  const [voiceError, setVoiceError] = useState<string | null>(null)
+  const dictationBase = useRef('')
+
   const geminiConfig = useGeminiConfig()
+
+  const speech = useSpeech({
+    lang,
+    onTranscript: (transcript) => setText(joinSpeech(dictationBase.current, transcript)),
+    onFailure: (failure) => setVoiceError(t(VOICE_ERROR_KEYS[failure])),
+  })
+
+  const toggleVoice = () => {
+    if (speech.listening) {
+      speech.stop()
+      return
+    }
+    setVoiceError(null)
+    dictationBase.current = text.trim()
+    speech.start()
+  }
 
   const submit = async (e?: FormEvent) => {
     e?.preventDefault()
     const value = text.trim()
     if (!value || busy) return
+    speech.stop()
+    setVoiceError(null)
     setBusy(true)
     setWarning(null)
     const { parsed, warning: warn } = await analyzeNote(value, data.meds, geminiConfig)
@@ -59,11 +90,35 @@ export const BrainDumpBar = () => {
         <Sparkles className={cx('h-5 w-5 shrink-0 transition-colors', geminiConfig ? 'text-sky-300' : 'text-slate-500')} />
         <input
           value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={t('dump.placeholder')}
+          onChange={(e) => {
+            if (speech.listening) speech.stop()
+            setText(e.target.value)
+          }}
+          placeholder={speech.listening ? t('dump.listening') : t('dump.placeholder')}
           aria-label={t('dump.aria')}
           className="min-w-0 flex-1 bg-transparent py-2.5 text-base text-white outline-none placeholder:text-slate-500"
         />
+        {speech.supported && (
+          <button
+            type="button"
+            onClick={toggleVoice}
+            aria-pressed={speech.listening}
+            aria-label={speech.listening ? t('dump.mic.stop') : t('dump.mic.start')}
+            title={speech.listening ? t('dump.mic.stop') : t('dump.mic.start')}
+            className={cx(
+              'btn btn-ghost relative h-11 w-11 shrink-0 !rounded-full !p-0 backdrop-blur-md',
+              speech.listening ? '!border-rose-300/50 !bg-rose-500/20 text-rose-100' : 'text-slate-300',
+            )}
+          >
+            {speech.listening && (
+              <>
+                <span aria-hidden className="pointer-events-none absolute inset-0 rounded-full border-2 border-cyan-300/70 animate-mic-ring" />
+                <span aria-hidden className="pointer-events-none absolute inset-0 rounded-full border-2 border-rose-400/60 animate-mic-ring [animation-delay:0.8s]" />
+              </>
+            )}
+            <Mic className="relative h-5 w-5" />
+          </button>
+        )}
         <button
           type="submit"
           disabled={!text.trim() || busy}
@@ -73,6 +128,12 @@ export const BrainDumpBar = () => {
           {busy ? <Spinner /> : <ArrowUp className="h-5 w-5" />}
         </button>
       </form>
+
+      {voiceError && (
+        <p role="alert" className="px-4 text-xs text-amber-300">
+          {voiceError}
+        </p>
+      )}
 
       {!last && !busy && (
         <div className="flex flex-wrap gap-2 px-1">

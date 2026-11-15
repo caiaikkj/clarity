@@ -94,6 +94,10 @@ export default {
           '0%': { transform: 'scale(0.6)' },
           '100%': { transform: 'scale(1)' },
         },
+        micRing: {
+          '0%': { opacity: '0.75', transform: 'scale(1)' },
+          '100%': { opacity: '0', transform: 'scale(1.7)' },
+        },
         ringPulse: {
           '0%': { transform: 'scale(0.9)' },
           '45%': { transform: 'scale(1.08)' },
@@ -114,6 +118,7 @@ export default {
         scanline: 'scanline 2.2s ease-in-out infinite',
         'check-draw': 'checkDraw 0.3s cubic-bezier(0.22,1,0.36,1) 0.06s both',
         'check-pop': 'checkPop 0.32s cubic-bezier(0.34,1.56,0.64,1) both',
+        'mic-ring': 'micRing 1.6s cubic-bezier(0.22,1,0.36,1) infinite',
         'ring-pulse': 'ringPulse 0.7s cubic-bezier(0.34,1.56,0.64,1) both',
       },
     },

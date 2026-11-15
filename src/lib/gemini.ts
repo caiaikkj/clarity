@@ -348,6 +348,31 @@ ${languageRule(config.language)} Every string item must follow that language.`
   return leaflet
 }
 
+const MAX_OBSERVATIONS = 3
+
+export const generateInsightObservations = async (config: GeminiConfig, digest: string, signal?: AbortSignal) => {
+  const prompt = `You are a careful clinical pharmacist reviewing a patient's last 14 days of medication adherence and personal notes. The data below is a compact local summary (no free text).
+
+Strict rules:
+- Write exactly ${MAX_OBSERVATIONS} concise observations (max 35 words each), each grounded only in the data below. Never invent medications, doses, symptoms or numbers.
+- Patterns are correlations, not causes: never claim a medication caused a symptom, never diagnose, and never tell the patient to stop, skip or change a medication or dose.
+- Cover, when the data allows: the time of day with the best or worst on-time adherence, a recurring symptom and any medication taken in the previous 4 hours, and one practical, low-risk habit suggestion. If the data is too thin for a point, say so briefly instead of guessing.
+- When a pattern could matter clinically, suggest discussing it with a pharmacist or doctor.
+- Calm, plain, non-alarming language.
+Return JSON only: { "observations": string[] }
+${languageRule(config.language)} Every observation must follow that language.
+
+Data: ${digest}`
+  const raw = await callGemini({ ...config, input: [text(prompt)], json: true, temperature: SUMMARY_TEMPERATURE, signal })
+  const parsed = parseJson<{ observations?: unknown }>(raw, config.language)
+  const observations = (Array.isArray(parsed.observations) ? parsed.observations : [])
+    .map((item) => unwrapText(item).trim())
+    .filter(Boolean)
+    .slice(0, MAX_OBSERVATIONS)
+  if (observations.length === 0) throw new GeminiError(translate(config.language, 'gemini.unreadable'))
+  return observations
+}
+
 export const generateNotes = async (config: GeminiConfig, name: string, activeIngredient: string, innEn: string[]) => {
   const prompt = `You are a Brazilian clinical pharmacist. There is no FDA label for "${name}" (active ingredient: ${activeIngredient || innEn.join(', ') || 'unknown'}), for example because it is only sold in Brazil. Write concise pharmacological and interaction notes in ${LANG_NAME[config.language]} for a patient. Be accurate and conservative; if unsure, say so. Return JSON only:
 {

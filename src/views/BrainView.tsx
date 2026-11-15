@@ -7,6 +7,7 @@ import { buildGraph, habitId, symptomId, type GraphNode } from '../lib/graph'
 import { formatDateTime } from '../lib/dates'
 import { InteractionGraph } from '../components/InteractionGraph'
 import { InteractionChecker } from '../components/InteractionChecker'
+import { PatternInsights } from '../components/PatternInsights'
 import { Chip, EmptyState, GlassCard, IconButton, PageHeader, SeverityBadge, cx } from '../components/ui'
 
 const LEGEND: { key: TKey; color: string }[] = [
@@ -125,6 +126,8 @@ export const BrainView = () => {
         </GlassCard>
       ) : (
         <div className="space-y-6">
+          <PatternInsights />
+
           <GlassCard className="overflow-hidden p-2 sm:p-3">
             <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">

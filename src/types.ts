@@ -68,6 +68,7 @@ export interface DoseLog {
   medId: string
   date: string
   time: string
+  dueTime?: string
   takenAt: string
 }
 
