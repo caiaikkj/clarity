@@ -18,6 +18,9 @@ const CATEGORY_META: Record<Category, { tone: 'indigo' | 'cyan' | 'slate'; text:
   otc: { tone: 'slate', text: 'text-violet-200', bg: 'from-violet-400/30 to-violet-600/20' },
 }
 
+const LONG_NAME_CHARS = 22
+const VERY_LONG_NAME_CHARS = 36
+
 const MedCard = ({ med, index, onRefill }: { med: Medication; index: number; onRefill: () => void }) => {
   const { data, removeMed } = useData()
   const { t, lang } = useI18n()
@@ -38,12 +41,23 @@ const MedCard = ({ med, index, onRefill }: { med: Medication; index: number; onR
           <Pill className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-lg font-semibold tracking-tight text-white">{med.name}</h3>
+          <h3
+            title={med.name}
+            className={cx(
+              'break-words font-semibold leading-snug tracking-tight text-white',
+              med.name.length > VERY_LONG_NAME_CHARS ? 'line-clamp-3' : 'line-clamp-2',
+              med.name.length > LONG_NAME_CHARS ? 'text-base' : 'text-lg',
+            )}
+          >
+            {med.name}
+          </h3>
           <p className="num text-sm text-slate-300">
             {med.strength || '—'} · {formLabel(med.form, lang)}
           </p>
         </div>
-        <Chip tone={meta.tone}>{t(`category.${med.category}`)}</Chip>
+        <Chip tone={meta.tone} className="shrink-0">
+          {t(`category.${med.category}`)}
+        </Chip>
       </div>
 
       <MedBadges med={med} />
@@ -70,12 +84,12 @@ const MedCard = ({ med, index, onRefill }: { med: Medication; index: number; onR
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-white/10">
           <div
-            className={cx('h-full rounded-full transition-all duration-1000 ease-smooth', low ? 'bg-gradient-to-r from-amber-400 to-orange-400' : 'bg-gradient-to-r from-sky-400 to-indigo-500')}
+            className={cx('h-full rounded-full transition-all duration-700 ease-smooth', low ? 'bg-gradient-to-r from-amber-400 to-orange-400' : 'bg-gradient-to-r from-sky-400 to-indigo-500')}
             style={{ width: `${pct}%` }}
           />
         </div>
         {low && (
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-amber-300/25 bg-amber-400/10 px-3.5 py-2.5">
+          <div className="badge-urgent mt-3 flex items-center justify-between gap-3 rounded-2xl border border-amber-300/25 bg-amber-400/10 px-3.5 py-2.5">
             <p className="flex items-center gap-2 text-xs font-medium text-amber-100">
               <AlertTriangle className="h-4 w-4 shrink-0 text-amber-300" />
               {med.stock === 0 ? t('card.outOfStock') : t('card.lowStock')}
@@ -121,7 +135,7 @@ const MedCard = ({ med, index, onRefill }: { med: Medication; index: number; onR
         <button type="button" onClick={() => setOpen(!open)} className="btn btn-ghost !px-3 !py-1.5 text-xs text-slate-300" aria-expanded={open}>
           <ShieldCheck className="h-3.5 w-3.5" />
           {t('card.labelDetails')}
-          <ChevronDown className={cx('h-3.5 w-3.5 transition-transform duration-500 ease-spring', open && 'rotate-180')} />
+          <ChevronDown className={cx('h-3.5 w-3.5 transition-transform duration-200 ease-spring', open && 'rotate-180')} />
         </button>
         <div className="flex items-center gap-1.5">
           <button

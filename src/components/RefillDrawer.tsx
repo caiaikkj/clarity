@@ -1,10 +1,10 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { Check, Copy, ExternalLink, FlaskConical, MapPin, PackagePlus, ShoppingBag, Store, Tag } from 'lucide-react'
+import { Copy, ExternalLink, FlaskConical, MapPin, PackagePlus, ShoppingBag, Store, Tag } from 'lucide-react'
 import { useI18n } from '../i18n'
 import { brl, parsePrice } from '../lib/format'
 import { useData } from '../lib/store'
 import { isLowStock } from '../lib/schedule'
-import { Chip, Drawer, cx } from './ui'
+import { AnimatedCheck, Chip, Drawer, cx } from './ui'
 
 type SearchBy = 'name' | 'active'
 
@@ -126,7 +126,7 @@ export const RefillDrawer = ({ medId, onClose }: { medId: string; onClose: () =>
               </p>
             </div>
             <button type="button" onClick={copyActive} aria-label={t('drawer.copyAria')} className="btn btn-ghost h-9 w-9 shrink-0 !p-0">
-              {copied ? <Check className="h-4 w-4 text-emerald-300" /> : <Copy className="h-4 w-4" />}
+              {copied ? <AnimatedCheck className="h-4 w-4 text-emerald-300" strokeWidth={2.5} /> : <Copy className="h-4 w-4" />}
             </button>
           </div>
           <input
@@ -195,7 +195,7 @@ export const RefillDrawer = ({ medId, onClose }: { medId: string; onClose: () =>
           </div>
           {priceInvalid && <p className="text-xs text-rose-300">{t('drawer.invalidPrice')}</p>}
           <button type="submit" className="btn btn-primary w-full" disabled={priceInvalid || (!price.trim() && !pharmacy.trim())}>
-            {saved ? <Check className="h-4 w-4" /> : <Tag className="h-4 w-4" />}
+            {saved ? <AnimatedCheck className="h-4 w-4" strokeWidth={2.5} /> : <Tag className="h-4 w-4" />}
             {saved ? t('drawer.saved') : t('drawer.savePrice')}
           </button>
         </form>
@@ -214,7 +214,7 @@ export const RefillDrawer = ({ medId, onClose }: { medId: string; onClose: () =>
                 disabled={id === 'active' && !med.activeIngredient}
                 onClick={() => setSearchBy(id)}
                 className={cx(
-                  'rounded-full px-3 py-1 text-xs font-medium transition-all duration-500 ease-spring disabled:opacity-40',
+                  'tactile rounded-full px-3 py-1 text-xs font-medium disabled:opacity-40',
                   searchBy === id ? 'bg-white/[0.14] text-white' : 'text-slate-400',
                 )}
               >

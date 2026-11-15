@@ -361,7 +361,7 @@ export const AddMedicationModal = () => {
                 aria-selected={mode === id}
                 onClick={() => setMode(id)}
                 className={cx(
-                  'flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-all duration-500 ease-spring active:scale-95 sm:text-sm',
+                  'tactile flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium sm:text-sm',
                   mode === id ? 'bg-white/[0.14] text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]' : 'text-slate-400 hover:text-slate-200',
                 )}
               >
@@ -412,7 +412,7 @@ export const AddMedicationModal = () => {
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
-                  className="flex w-full flex-col items-center gap-2 rounded-2xl border border-dashed border-white/20 bg-black/10 px-4 py-8 text-sm text-slate-400 transition-all duration-500 ease-spring hover:border-sky-300/40 hover:bg-white/[0.05] hover:text-slate-200"
+                  className="flex w-full flex-col items-center gap-2 rounded-2xl border border-dashed border-white/20 bg-black/10 px-4 py-8 text-sm text-slate-400 transition-all duration-200 ease-smooth hover:border-sky-300/40 hover:bg-white/[0.05] hover:text-slate-200"
                 >
                   <ScanLine className="h-7 w-7 text-sky-300" />
                   {t('add.photoUpload')}

@@ -63,7 +63,7 @@ export const GUIDE: Record<Lang, GuideContent> = {
         items: [
           'O seletor PT | EN troca a interface e o idioma das respostas da IA. A escolha fica salva.',
           'Em Ajustes, cole sua chave do Google AI Studio e use Testar chave. Sem chave, o app continua funcionando com marcação local.',
-          'Você pode restaurar os dados de exemplo ou apagar tudo.',
+          'Você pode apagar todos os seus dados em Ajustes a qualquer momento.',
         ],
       },
       {
@@ -133,7 +133,7 @@ export const GUIDE: Record<Lang, GuideContent> = {
         items: [
           'The PT | EN switch changes the interface and the language of AI answers. Your choice is saved.',
           'In Settings, paste your Google AI Studio key and press Test key. Without a key the app still works with on-device tagging.',
-          'You can restore the sample data or clear everything.',
+          'You can clear all your data in Settings at any time.',
         ],
       },
       {

@@ -109,8 +109,8 @@ export const BriefingView = () => {
 
         <div className="grid grid-cols-3 gap-3 text-center">
           {[
-            { label: t('briefing.adherence7'), value: `${briefing.week.pct}%`, sub: t('briefing.dosesOf', { taken: briefing.week.taken, expected: briefing.week.expected }) },
-            { label: t('briefing.adherence30'), value: `${briefing.month.pct}%`, sub: t('briefing.dosesOf', { taken: briefing.month.taken, expected: briefing.month.expected }) },
+            { label: t('briefing.adherence7'), value: briefing.week.expected === 0 ? '—' : `${briefing.week.pct}%`, sub: t('briefing.dosesOf', { taken: briefing.week.taken, expected: briefing.week.expected }) },
+            { label: t('briefing.adherence30'), value: briefing.month.expected === 0 ? '—' : `${briefing.month.pct}%`, sub: t('briefing.dosesOf', { taken: briefing.month.taken, expected: briefing.month.expected }) },
             { label: t('briefing.currentStreak'), value: `${briefing.streakDays}`, sub: t('unit.day', { count: briefing.streakDays }) },
           ].map((s) => (
             <div key={s.label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">

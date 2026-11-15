@@ -1,22 +1,22 @@
 import { useState } from 'react'
-import { CheckCircle2, ExternalLink, Eye, EyeOff, KeyRound, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react'
+import { CheckCircle2, ExternalLink, Eye, EyeOff, KeyRound, ShieldCheck, Trash2 } from 'lucide-react'
 import { useI18n } from '../i18n'
 import { useData, useUi } from '../lib/store'
 import { DEFAULT_MODEL, MODEL_OPTIONS, testGeminiKey } from '../lib/gemini'
 import { LanguageToggle } from './LanguageToggle'
-import { Modal, Spinner, cx } from './ui'
+import { Modal, Spinner } from './ui'
 
 type Test = { state: 'idle' } | { state: 'busy' } | { state: 'ok' } | { state: 'error'; message: string }
 
 export const SettingsModal = () => {
   const { openModal } = useUi()
   const { t, lang } = useI18n()
-  const { settings, setSettings, resetSample, clearAll } = useData()
+  const { settings, setSettings, clearAll } = useData()
   const [key, setKey] = useState(settings.geminiKey)
   const [model, setModel] = useState(settings.model || DEFAULT_MODEL)
   const [reveal, setReveal] = useState(false)
   const [test, setTest] = useState<Test>({ state: 'idle' })
-  const [confirm, setConfirm] = useState<'reset' | 'clear' | null>(null)
+  const [confirm, setConfirm] = useState(false)
 
   const close = () => openModal(null)
 
@@ -36,9 +36,8 @@ export const SettingsModal = () => {
   }
 
   const confirmAction = () => {
-    if (confirm === 'reset') resetSample()
-    if (confirm === 'clear') clearAll()
-    setConfirm(null)
+    clearAll()
+    setConfirm(false)
     close()
   }
 
@@ -156,24 +155,20 @@ export const SettingsModal = () => {
           {confirm ? (
             <div className="glass-soft space-y-3 !border-rose-300/25 p-4">
               <p className="text-sm text-rose-100">
-                {confirm === 'reset' ? t('settings.confirmReset') : t('settings.confirmClear')} {t('settings.cannotUndo')}
+                {t('settings.confirmClear')} {t('settings.cannotUndo')}
               </p>
               <div className="flex gap-2">
                 <button type="button" className="btn !border-rose-300/40 !bg-rose-500/25" onClick={confirmAction}>
                   {t('settings.yes')}
                 </button>
-                <button type="button" className="btn btn-ghost" onClick={() => setConfirm(null)}>
+                <button type="button" className="btn btn-ghost" onClick={() => setConfirm(false)}>
                   {t('settings.keepData')}
                 </button>
               </div>
             </div>
           ) : (
-            <div className={cx('flex flex-wrap gap-2')}>
-              <button type="button" className="btn" onClick={() => setConfirm('reset')}>
-                <RotateCcw className="h-4 w-4" />
-                {t('settings.reset')}
-              </button>
-              <button type="button" className="btn text-rose-200" onClick={() => setConfirm('clear')}>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn text-rose-200" onClick={() => setConfirm(true)}>
                 <Trash2 className="h-4 w-4" />
                 {t('settings.clear')}
               </button>

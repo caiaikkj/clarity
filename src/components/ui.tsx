@@ -5,6 +5,9 @@ import { useI18n } from '../i18n'
 
 export const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' ')
 
+const STAGGER_FACTOR = 0.5
+const STAGGER_CAP_MS = 240
+
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   interactive?: boolean
   delay?: number
@@ -13,11 +16,26 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 export const GlassCard = ({ interactive, delay = 0, className, style, children, ...rest }: CardProps) => (
   <div
     className={cx('glass animate-rise', interactive && 'glass-interactive', className)}
-    style={{ animationDelay: `${delay}ms`, ...style }}
+    style={{ animationDelay: `${Math.min(delay, STAGGER_CAP_MS) * STAGGER_FACTOR}ms`, ...style }}
     {...rest}
   >
     {children}
   </div>
+)
+
+export const AnimatedCheck = ({ className, animate = true, strokeWidth = 3 }: { className?: string; animate?: boolean; strokeWidth?: number }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={strokeWidth}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={cx(animate && 'animate-check-pop', className)}
+    aria-hidden
+  >
+    <path d="M20 6 9 17l-5-5" pathLength={1} strokeDasharray={1} className={animate ? 'animate-check-draw' : undefined} />
+  </svg>
 )
 
 export const Spinner = ({ className }: { className?: string }) => (

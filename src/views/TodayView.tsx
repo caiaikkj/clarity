@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, Check, Clock, Flame, NotebookPen, Pill, Plus, Undo2 } from 'lucide-react'
+import { AlertTriangle, Clock, Flame, NotebookPen, Pill, Plus, Undo2 } from 'lucide-react'
 import type { Dose, Medication, TimeBlock } from '../types'
 import { useI18n } from '../i18n'
 import { useData, useNow, useUi } from '../lib/store'
@@ -9,7 +9,7 @@ import { AdherenceRing } from '../components/AdherenceRing'
 import { BrainDumpBar } from '../components/BrainDumpBar'
 import { MedBadges } from '../components/MedBadges'
 import { NoteCard } from '../components/NoteCard'
-import { Chip, EmptyState, GlassCard, PageHeader, cx } from '../components/ui'
+import { AnimatedCheck, Chip, EmptyState, GlassCard, PageHeader, cx } from '../components/ui'
 
 const BLOCKS: TimeBlock[] = ['morning', 'afternoon', 'night']
 
@@ -35,24 +35,24 @@ const DoseCard = ({ dose, med, now }: { dose: Dose; med: Medication; now: Date }
   return (
     <div
       className={cx(
-        'glass-soft flex items-center gap-4 p-4 transition-all duration-500 ease-spring',
+        'glass-soft flex items-center gap-4 p-4 transition-all duration-200 ease-smooth',
         taken && 'border-sky-300/25 bg-sky-400/[0.08]',
         pulse && 'haptic-glow',
       )}
     >
       <div
         className={cx(
-          'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition-all duration-500 ease-spring',
+          'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition-all duration-200 ease-spring',
           taken
             ? 'scale-105 border-sky-300/40 bg-gradient-to-br from-sky-400 to-indigo-500 text-white shadow-glow'
             : 'border-white/10 bg-white/[0.06] text-slate-300',
         )}
       >
-        {taken ? <Check className="h-6 w-6" strokeWidth={3} /> : <Pill className="h-5 w-5" />}
+        {taken ? <AnimatedCheck className="h-6 w-6" animate={pulse} /> : <Pill className="h-5 w-5" />}
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className={cx('truncate text-[15px] font-semibold transition-colors', taken ? 'text-slate-300' : 'text-white')}>
+        <p className={cx('line-clamp-2 break-words text-[15px] font-semibold leading-snug transition-colors', taken ? 'text-slate-300' : 'text-white')}>
           {med.name} <span className="num font-normal text-slate-400">{med.strength}</span>
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
@@ -62,7 +62,7 @@ const DoseCard = ({ dose, med, now }: { dose: Dose; med: Medication; now: Date }
           </span>
           <span className="num">{t('today.left', { n: med.stock })}</span>
           {overdue && (
-            <Chip tone="amber">
+            <Chip tone="amber" className="badge-urgent">
               <AlertTriangle className="h-3 w-3" />
               {t('today.overdue')}
             </Chip>
@@ -108,7 +108,7 @@ const AsNeededRow = ({ med }: { med: Medication }) => {
         <Pill className="h-5 w-5" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[15px] font-semibold text-white">
+        <p className="line-clamp-2 break-words text-[15px] font-semibold leading-snug text-white">
           {med.name} <span className="num font-normal text-slate-400">{med.strength}</span>
         </p>
         <p className="num mt-1 text-xs text-slate-400">{t('today.asNeededLeft', { n: med.stock })}</p>
@@ -157,7 +157,7 @@ export const TodayView = () => {
         <button
           type="button"
           onClick={() => setView('cabinet')}
-          className="glass-soft glass-interactive mt-5 flex w-full items-center gap-3 !border-amber-300/25 !bg-amber-400/[0.08] px-4 py-3 text-left"
+          className="glass-soft glass-interactive badge-urgent mt-5 flex w-full items-center gap-3 !border-amber-300/25 !bg-amber-400/[0.08] px-4 py-3 text-left"
         >
           <AlertTriangle className="h-5 w-5 shrink-0 text-amber-300" />
           <p className="text-sm text-amber-100">
@@ -190,8 +190,8 @@ export const TodayView = () => {
               <div className="glass-soft p-3.5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">{t('today.sevenDay')}</p>
                 <p className="num mt-1 text-2xl font-semibold text-white">
-                  {week.pct}
-                  <span className="ml-0.5 text-sm font-normal text-slate-400">%</span>
+                  {week.expected === 0 ? '—' : week.pct}
+                  {week.expected > 0 && <span className="ml-0.5 text-sm font-normal text-slate-400">%</span>}
                 </p>
               </div>
             </div>
@@ -200,7 +200,7 @@ export const TodayView = () => {
               {next ? (
                 <div className="mt-1.5 flex items-end justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-white">{medById.get(next.dose.medId)?.name}</p>
+                    <p className="line-clamp-2 break-words text-sm font-semibold leading-snug text-white">{medById.get(next.dose.medId)?.name}</p>
                     <p className="num text-xs text-slate-400">{formatClock(next.dose.time, lang)}</p>
                   </div>
                   <p className={cx('num text-2xl font-semibold', next.overdue ? 'text-amber-300' : 'gradient-text')}>

@@ -31,7 +31,39 @@ const nodeColor = (n: GraphNode) => {
   return '#38bdf8'
 }
 
-const truncate = (s: string, n = 16) => (s.length > n ? `${s.slice(0, n - 1)}…` : s)
+const LABEL_LINE_CHARS = 14
+const LABEL_MAX_LINES = 2
+const LABEL_FONT_SIZE = 12
+const LABEL_MIN_FONT_SIZE = 9.5
+const LABEL_LINE_HEIGHT = 13
+const LABEL_HARD_LIMIT = 28
+const FADE_TRANSITION = 'opacity 200ms cubic-bezier(0.22, 1, 0.36, 1)'
+
+const clip = (s: string) => (s.length > LABEL_HARD_LIMIT ? `${s.slice(0, LABEL_HARD_LIMIT - 1)}…` : s)
+
+const wrapLabel = (label: string) => {
+  const lines: string[] = []
+  let current = ''
+  label
+    .trim()
+    .split(/\s+/)
+    .forEach((word) => {
+      const candidate = current ? `${current} ${word}` : word
+      if (!current || candidate.length <= LABEL_LINE_CHARS) {
+        current = candidate
+        return
+      }
+      lines.push(current)
+      current = word
+    })
+  if (current) lines.push(current)
+  const kept = lines.slice(0, LABEL_MAX_LINES - 1)
+  const rest = lines.slice(LABEL_MAX_LINES - 1).join(' ')
+  const wrapped = (rest ? [...kept, rest] : kept).map(clip)
+  const longest = Math.max(...wrapped.map((line) => line.length))
+  const fontSize = longest > LABEL_LINE_CHARS ? Math.max(LABEL_MIN_FONT_SIZE, (LABEL_FONT_SIZE * LABEL_LINE_CHARS) / longest) : LABEL_FONT_SIZE
+  return { lines: wrapped, fontSize }
+}
 
 export const InteractionGraph = ({ nodes, edges, selectedId, onSelect, height = 520 }: Props) => {
   const { t } = useI18n()
@@ -238,7 +270,7 @@ export const InteractionGraph = ({ nodes, edges, selectedId, onSelect, height = 
               strokeLinecap="round"
               strokeDasharray={e.severity ? undefined : '2 6'}
               opacity={active ? (e.severity ? 0.85 : 0.5) : 0.07}
-              style={{ transition: 'opacity 400ms ease', filter: e.severity ? `drop-shadow(0 0 4px ${color})` : undefined }}
+              style={{ transition: FADE_TRANSITION, filter: e.severity ? `drop-shadow(0 0 4px ${color})` : undefined }}
             />
           )
         })}
@@ -250,11 +282,12 @@ export const InteractionGraph = ({ nodes, edges, selectedId, onSelect, height = 
           const color = nodeColor(n)
           const dimmed = focusId !== null && !neighbors.has(n.id)
           const selected = selectedId === n.id
+          const label = wrapLabel(n.label)
           return (
             <g
               key={n.id}
               transform={`translate(${b.x},${b.y})`}
-              style={{ cursor: 'grab', touchAction: 'none', opacity: dimmed ? 0.22 : 1, transition: 'opacity 400ms ease' }}
+              style={{ cursor: 'grab', touchAction: 'none', opacity: dimmed ? 0.22 : 1, transition: FADE_TRANSITION }}
               onPointerDown={(e) => onDown(e, n.id)}
               onPointerMove={(e) => onMove(e, n.id)}
               onPointerUp={() => onUp(n.id)}
@@ -264,7 +297,7 @@ export const InteractionGraph = ({ nodes, edges, selectedId, onSelect, height = 
               role="button"
               aria-label={`${n.label}, ${t(`brain.kind.${n.kind}`)}`}
             >
-              <circle r={r + 7} fill={color} opacity={selected ? 0.28 : 0.1} style={{ transition: 'opacity 300ms ease' }} />
+              <circle r={r + 7} fill={color} opacity={selected ? 0.28 : 0.1} style={{ transition: FADE_TRANSITION }} />
               <circle
                 r={r}
                 fill="rgba(15,23,42,0.55)"
@@ -277,17 +310,21 @@ export const InteractionGraph = ({ nodes, edges, selectedId, onSelect, height = 
                 {n.label.charAt(0).toUpperCase()}
               </text>
               <text
-                y={r + 17}
                 textAnchor="middle"
                 fill="#e2e8f0"
-                fontSize={12}
+                fontSize={label.fontSize}
                 fontWeight={550}
                 stroke="#090D16"
                 strokeWidth={4}
                 paintOrder="stroke"
                 strokeLinejoin="round"
               >
-                {truncate(n.label)}
+                <title>{n.label}</title>
+                {label.lines.map((line, index) => (
+                  <tspan key={`${index}-${line}`} x={0} y={r + 16 + index * LABEL_LINE_HEIGHT}>
+                    {line}
+                  </tspan>
+                ))}
               </text>
             </g>
           )

@@ -1,7 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react'
 import type { AppData, Dose, DoseLog, Medication, ModalId, Note, ParsedNote, Settings, ViewId } from '../types'
-import { SEED_PHARMA, createSeedData } from '../data/seed'
-import { readStoredLang } from '../i18n'
 import { DEFAULT_MODEL, MODEL_OPTIONS } from './gemini'
 import { dateKey, minutesOf } from './dates'
 import { doseId, dosesForDate } from './schedule'
@@ -9,7 +7,8 @@ import { uid } from './id'
 
 const DATA_KEY = 'clarity:data:v1'
 const SETTINGS_KEY = 'clarity:settings:v1'
-const PHARMA_MIGRATION_KEY = 'clarity:migrated:pharma'
+
+const EMPTY_DATA: AppData = { meds: [], logs: [], notes: [] }
 
 type Action =
   | { type: 'take'; medId: string; date: string; time: string; takenAt: string }
@@ -114,20 +113,12 @@ const loadData = (): AppData => {
     const raw = localStorage.getItem(DATA_KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as AppData
-      if (Array.isArray(parsed.meds) && Array.isArray(parsed.logs) && Array.isArray(parsed.notes)) {
-        if (localStorage.getItem(PHARMA_MIGRATION_KEY) === '1') return parsed
-        localStorage.setItem(PHARMA_MIGRATION_KEY, '1')
-        return {
-          ...parsed,
-          meds: parsed.meds.map((m) => (SEED_PHARMA[m.id] ? { ...SEED_PHARMA[m.id], ...m } : m)),
-        }
-      }
+      if (Array.isArray(parsed.meds) && Array.isArray(parsed.logs) && Array.isArray(parsed.notes)) return parsed
     }
   } catch {
     localStorage.removeItem(DATA_KEY)
   }
-  localStorage.setItem(PHARMA_MIGRATION_KEY, '1')
-  return createSeedData(readStoredLang())
+  return EMPTY_DATA
 }
 
 const loadSettings = (): Settings => {
@@ -157,7 +148,6 @@ interface DataApi {
   addNote: (text: string, parsed: ParsedNote) => void
   removeNote: (id: string) => void
   logNoteDose: (id: string) => void
-  resetSample: () => void
   clearAll: () => void
 }
 
@@ -218,8 +208,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }),
       removeNote: (id) => dispatch({ type: 'removeNote', id }),
       logNoteDose: (id) => dispatch({ type: 'logNoteDose', noteId: id }),
-      resetSample: () => dispatch({ type: 'replace', data: createSeedData(readStoredLang()) }),
-      clearAll: () => dispatch({ type: 'replace', data: { meds: [], logs: [], notes: [] } }),
+      clearAll: () => dispatch({ type: 'replace', data: EMPTY_DATA }),
     }),
     [data, settings, setSettings],
   )

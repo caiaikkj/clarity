@@ -53,7 +53,7 @@ export const BrainDumpBar = () => {
       <form
         onSubmit={submit}
         className={cx(
-          'glass flex items-center gap-3 !rounded-full py-2 pl-5 pr-2 transition-all duration-500 ease-smooth focus-within:border-sky-300/40 focus-within:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2),0_0_0_5px_rgba(56,189,248,0.1),0_24px_60px_-24px_rgba(56,189,248,0.35)]',
+          'glass flex items-center gap-3 !rounded-full py-2 pl-5 pr-2 transition-all duration-200 ease-smooth focus-within:border-sky-300/40 focus-within:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2),0_0_0_5px_rgba(56,189,248,0.1),0_24px_60px_-24px_rgba(56,189,248,0.35)]',
         )}
       >
         <Sparkles className={cx('h-5 w-5 shrink-0 transition-colors', geminiConfig ? 'text-sky-300' : 'text-slate-500')} />

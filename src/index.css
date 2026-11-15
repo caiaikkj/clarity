@@ -6,6 +6,20 @@
 
 :root {
   color-scheme: dark;
+  --ease-panel: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 200ms;
+  --focus-ring: rgba(125, 211, 252, 0.85);
+}
+
+:where(button, a, summary, [role='tab'], [role='radio'], [role='button'], [tabindex]) {
+  outline: 2px solid transparent;
+  outline-offset: 0;
+}
+
+:where(button, a, summary, [role='tab'], [role='radio'], [role='button'], [tabindex]):focus-visible {
+  outline-color: var(--focus-ring);
+  outline-offset: 3px;
 }
 
 html,
@@ -39,26 +53,30 @@ body {
     @apply rounded-2xl border border-white/[0.1] bg-white/[0.05] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)] backdrop-blur-xl;
   }
 
-  .glass-interactive {
-    @apply transition-all duration-500 ease-spring;
+  .glass-interactive,
+  .btn,
+  .tactile {
+    transition-property: transform, background-color, border-color, box-shadow, color, opacity, outline-color, outline-offset;
+    transition-duration: var(--dur-fast);
+    transition-timing-function: var(--ease-spring), var(--ease-panel), var(--ease-panel), var(--ease-panel), var(--ease-panel), var(--ease-panel), var(--ease-panel), var(--ease-panel);
   }
+
   .glass-interactive:hover {
     @apply -translate-y-0.5 border-white/[0.24] bg-white/[0.1] shadow-glass-lift;
   }
-  .glass-interactive:active {
-    @apply scale-[0.985];
-    transition-duration: 120ms;
+  .tactile {
+    @apply select-none;
+  }
+  .tactile:hover {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
   }
 
   .btn {
-    @apply inline-flex select-none items-center justify-center gap-2 rounded-full border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-sm font-medium text-slate-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.15)] backdrop-blur-xl transition-all duration-300 ease-spring;
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-full border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-sm font-medium text-slate-100 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.15)] backdrop-blur-xl;
   }
   .btn:hover {
-    @apply scale-[1.04] border-white/[0.28] bg-white/[0.14];
-  }
-  .btn:active {
-    @apply scale-95;
-    transition-duration: 90ms;
+    @apply scale-[1.02] border-white/[0.28] bg-white/[0.14];
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
   }
   .btn:disabled {
     @apply pointer-events-none opacity-40;
@@ -70,6 +88,7 @@ body {
   }
   .btn-primary:hover {
     background-image: linear-gradient(135deg, rgba(56, 189, 248, 1), rgba(99, 102, 241, 1));
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.18), 0 10px 28px -8px rgba(56, 189, 248, 0.7);
     @apply border-sky-200/60;
   }
 
@@ -78,10 +97,35 @@ body {
   }
   .btn-ghost:hover {
     @apply border-white/[0.15] bg-white/[0.08];
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-interactive:active,
+  .btn:active,
+  .tactile:active {
+    transform: scale(0.97);
+    transition-duration: 90ms;
+  }
+
+  .badge-urgent {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    animation: urgent-pulse 2.8s var(--ease-panel) infinite;
+  }
+  .badge-urgent::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(105deg, transparent 35%, rgba(253, 230, 138, 0.2) 50%, transparent 65%);
+    transform: translateX(-130%);
+    animation: urgent-sheen 3.4s var(--ease-panel) infinite;
   }
 
   .field {
-    @apply w-full rounded-2xl border border-white/[0.12] bg-black/20 px-4 py-2.5 text-sm text-slate-100 outline-none transition-all duration-300 ease-smooth placeholder:text-slate-500;
+    @apply w-full rounded-2xl border border-white/[0.12] bg-black/20 px-4 py-2.5 text-sm text-slate-100 outline-none transition-all duration-200 ease-smooth placeholder:text-slate-500;
   }
   .field:focus {
     @apply border-sky-300/50 bg-black/30 shadow-[0_0_0_4px_rgba(56,189,248,0.12)];
@@ -111,6 +155,26 @@ body {
 
 .haptic-glow {
   animation: haptic 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes urgent-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
+  }
+  50% {
+    box-shadow: 0 0 16px -2px rgba(251, 191, 36, 0.3);
+  }
+}
+
+@keyframes urgent-sheen {
+  0%,
+  55% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(130%);
+  }
 }
 
 .safe-bottom {

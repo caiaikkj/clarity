@@ -1,4 +1,4 @@
-import { BrainCircuit, CalendarCheck2, ClipboardList, HelpCircle, Pill, Settings, Sparkles, WifiOff, type LucideIcon } from 'lucide-react'
+﻿import { BrainCircuit, CalendarCheck2, ClipboardList, HelpCircle, Pill, Settings, Sparkles, WifiOff, type LucideIcon } from 'lucide-react'
 import type { ViewId } from '../types'
 import { useI18n, type TKey } from '../i18n'
 import { useOnlineStatus } from '../lib/pwa'
@@ -41,10 +41,10 @@ export const Sidebar = () => {
               onClick={() => setView(id)}
               aria-current={active ? 'page' : undefined}
               className={cx(
-                'group flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all duration-500 ease-spring active:scale-95',
+                'tactile group flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium',
                 active
                   ? 'border-white/[0.18] bg-white/[0.12] text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2),0_8px_24px_-12px_rgba(56,189,248,0.5)]'
-                  : 'border-transparent text-slate-400 hover:translate-x-1 hover:bg-white/[0.06] hover:text-slate-100',
+                  : 'border-transparent text-slate-400 hover:bg-white/[0.06] hover:text-slate-100',
               )}
             >
               <Icon className={cx('h-[18px] w-[18px] transition-colors', active ? 'text-sky-300' : 'group-hover:text-sky-300')} />
@@ -61,7 +61,7 @@ export const Sidebar = () => {
       <button
         type="button"
         onClick={() => openModal('guide')}
-        className="group mb-1 flex items-center gap-3 rounded-2xl border border-transparent px-4 py-3 text-left text-sm font-medium text-slate-400 transition-all duration-500 ease-spring hover:bg-white/[0.06] hover:text-slate-100 active:scale-95"
+        className="tactile group mb-1 flex items-center gap-3 rounded-2xl border border-transparent px-4 py-3 text-left text-sm font-medium text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
       >
         <HelpCircle className="h-[18px] w-[18px] transition-colors group-hover:text-sky-300" />
         {t('nav.guide')}
@@ -70,9 +70,9 @@ export const Sidebar = () => {
       <button
         type="button"
         onClick={() => openModal('settings')}
-        className="group flex items-center gap-3 rounded-2xl border border-transparent px-4 py-3 text-left text-sm font-medium text-slate-400 transition-all duration-500 ease-spring hover:bg-white/[0.06] hover:text-slate-100 active:scale-95"
+        className="tactile group flex items-center gap-3 rounded-2xl border border-transparent px-4 py-3 text-left text-sm font-medium text-slate-400 hover:bg-white/[0.06] hover:text-slate-100"
       >
-        <Settings className="h-[18px] w-[18px] transition-transform duration-700 group-hover:rotate-90" />
+        <Settings className="h-[18px] w-[18px] transition-transform duration-500 ease-smooth group-hover:rotate-90" />
         <span className="flex-1">{t('nav.settings')}</span>
         <span
           className={cx('h-2 w-2 rounded-full', connected ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]' : 'bg-slate-600')}
@@ -87,6 +87,7 @@ export const TopBar = () => {
   const { openModal } = useUi()
   const { t } = useI18n()
   const online = useOnlineStatus()
+
   return (
     <div className="no-print fixed inset-x-3 top-3 z-30 flex items-center justify-between gap-2 lg:inset-x-auto lg:right-6 lg:top-4">
       {!online ? (
@@ -102,7 +103,7 @@ export const TopBar = () => {
           type="button"
           onClick={() => openModal('guide')}
           aria-label={t('nav.guide')}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/[0.08] text-slate-200 backdrop-blur-xl transition-all active:scale-90"
+          className="tactile flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/[0.08] text-slate-200 backdrop-blur-xl"
         >
           <HelpCircle className="h-[18px] w-[18px]" />
         </button>
@@ -112,40 +113,55 @@ export const TopBar = () => {
   )
 }
 
+const DOCK_COLUMNS = ITEMS.length + 1
+
 export const Dock = () => {
   const { view, setView, openModal } = useUi()
   const { t } = useI18n()
+  const activeIndex = ITEMS.findIndex((item) => item.id === view)
+
   return (
     <nav
       aria-label={t('nav.primary')}
-      className="no-print glass safe-bottom fixed inset-x-3 bottom-3 z-30 flex items-center justify-around !rounded-[26px] px-2 py-2 lg:hidden"
+      className="no-print glass fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 animate-dock !rounded-[26px] !bg-slate-900/55 p-2 backdrop-saturate-150 lg:hidden"
     >
-      {ITEMS.map(({ id, shortLabel, icon: Icon }) => {
-        const active = view === id
-        return (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setView(id)}
-            aria-current={active ? 'page' : undefined}
-            className={cx(
-              'flex flex-1 flex-col items-center gap-0.5 rounded-2xl px-1 py-2 text-[10px] font-medium transition-all duration-500 ease-spring active:scale-90',
-              active ? 'bg-white/[0.12] text-sky-300 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]' : 'text-slate-400',
-            )}
-          >
-            <Icon className={cx('h-5 w-5 transition-transform duration-500 ease-spring', active && '-translate-y-0.5 scale-110')} />
-            {t(shortLabel)}
-          </button>
-        )
-      })}
-      <button
-        type="button"
-        onClick={() => openModal('settings')}
-        className="flex flex-1 flex-col items-center gap-0.5 rounded-2xl px-1 py-2 text-[10px] font-medium text-slate-400 transition-all duration-500 ease-spring active:scale-90"
-      >
-        <Settings className="h-5 w-5" />
-        {t('nav.settings')}
-      </button>
+      <div className="relative grid" style={{ gridTemplateColumns: `repeat(${DOCK_COLUMNS}, minmax(0, 1fr))` }}>
+        <span
+          aria-hidden
+          className="absolute inset-y-0 left-0 rounded-2xl border border-white/[0.14] bg-white/[0.12] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.22),0_6px_18px_-8px_rgba(56,189,248,0.55)] transition-transform duration-200 ease-smooth"
+          style={{
+            width: `${100 / DOCK_COLUMNS}%`,
+            transform: `translateX(${Math.max(activeIndex, 0) * 100}%)`,
+            opacity: activeIndex >= 0 ? 1 : 0,
+          }}
+        />
+        {ITEMS.map(({ id, shortLabel, icon: Icon }) => {
+          const active = view === id
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setView(id)}
+              aria-current={active ? 'page' : undefined}
+              className={cx(
+                'tactile relative flex flex-col items-center gap-0.5 rounded-2xl px-1 py-2 text-[10px] font-medium',
+                active ? 'text-sky-300' : 'text-slate-400',
+              )}
+            >
+              <Icon className={cx('h-5 w-5 transition-transform duration-200 ease-spring', active && '-translate-y-0.5 scale-110')} />
+              {t(shortLabel)}
+            </button>
+          )
+        })}
+        <button
+          type="button"
+          onClick={() => openModal('settings')}
+          className="tactile relative flex flex-col items-center gap-0.5 rounded-2xl px-1 py-2 text-[10px] font-medium text-slate-400"
+        >
+          <Settings className="h-5 w-5" />
+          {t('nav.settings')}
+        </button>
+      </div>
     </nav>
   )
 }
