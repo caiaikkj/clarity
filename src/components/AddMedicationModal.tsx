@@ -1,22 +1,25 @@
 import { useRef, useState } from 'react'
-import { Camera, ClipboardPaste, FlaskConical, Plus, ScanLine, Search, ShieldCheck, Sparkles, Trash2, TriangleAlert, Upload } from 'lucide-react'
+import { Camera, ClipboardPaste, FlaskConical, Plus, ScanBarcode, ScanLine, Search, ShieldCheck, Sparkles, Tag, Trash2, TriangleAlert, Upload } from 'lucide-react'
 import type { Category, FdaInfo } from '../types'
-import { adminRuleFor, englishGenerics, type AnvisaMed } from '../data/anvisaMeds'
+import { adminRuleFor, englishGenerics, findCuratedByName, type AnvisaMed } from '../data/anvisaMeds'
+import { lookupEan, type EanMatch } from '../data/eanIndex'
 import { useI18n, type TKey } from '../i18n'
 import { ADMIN_RULE_PRESETS } from '../i18n/adminRules'
 import { FORMS, formLabel, isFormName } from '../i18n/forms'
 import { useData, useUi } from '../lib/store'
 import { enrichMedication } from '../lib/normalize'
-import { type ScannedMedication, scanMedicationWithGemini } from '../lib/gemini'
+import { type ScannedMedication, identifyBarcodeWithGemini, scanMedicationWithGemini } from '../lib/gemini'
 import { asCategory, parsePrescriptionText } from '../lib/prescriptionParser'
-import { parsePrice } from '../lib/format'
+import { brl, parsePrice } from '../lib/format'
 import { defaultTimes } from '../lib/schedule'
 import { useGeminiConfig } from '../lib/useGemini'
+import { BarcodeResultCard, type BarcodeResult } from './BarcodeResultCard'
+import { BarcodeScanner } from './BarcodeScanner'
 import { LabelDetails } from './LabelDetails'
 import { MedicationAutocomplete } from './MedicationAutocomplete'
 import { Chip, Modal, Spinner, cx } from './ui'
 
-type Mode = 'name' | 'paste' | 'photo'
+type Mode = 'name' | 'paste' | 'photo' | 'barcode'
 
 interface Status {
   kind: 'info' | 'success' | 'warn' | 'error'
@@ -35,6 +38,7 @@ const MODES: { id: Mode; label: TKey; icon: typeof Search }[] = [
   { id: 'name', label: 'add.mode.name', icon: Search },
   { id: 'paste', label: 'add.mode.paste', icon: ClipboardPaste },
   { id: 'photo', label: 'add.mode.photo', icon: Camera },
+  { id: 'barcode', label: 'add.mode.barcode', icon: ScanBarcode },
 ]
 
 const STATUS_STYLE: Record<Status['kind'], string> = {
@@ -100,6 +104,11 @@ export const AddMedicationModal = () => {
   const [adminRule, setAdminRule] = useState('')
   const [price, setPrice] = useState('')
   const [pharmacy, setPharmacy] = useState('')
+  const [pmc, setPmc] = useState<number | undefined>()
+  const [barcode, setBarcode] = useState<BarcodeResult | null>(null)
+  const [barcodeBusy, setBarcodeBusy] = useState(false)
+  const [barcodeGeminiBusy, setBarcodeGeminiBusy] = useState(false)
+  const [barcodeMessage, setBarcodeMessage] = useState<string | null>(null)
 
   const handleNameChange = (value: string) => {
     setName(value)
@@ -117,6 +126,81 @@ export const AddMedicationModal = () => {
     if (med.form && isFormName(med.form)) setForm(med.form)
     if (med.category) setCategory(med.category)
     setStatus({ kind: 'success', text: t('add.localMatch') })
+  }
+
+  const applyEanMatch = (match: EanMatch) => {
+    const { med } = match
+    const curated = findCuratedByName(med.commercialName)
+    setName(med.commercialName)
+    setSelectedMed(med)
+    setActiveIngredient(med.activeIngredient)
+    setAdminRule(curated ? adminRuleFor(curated, lang) : '')
+    setIngredients(englishGenerics(curated ?? med).map((generic) => generic.toUpperCase()))
+    setFda(undefined)
+    const exactStrength = match.strength || med.commonDosages[0]
+    if (exactStrength) setStrength(exactStrength)
+    if (med.form && isFormName(med.form)) setForm(med.form)
+    if (med.category) setCategory(med.category)
+    if (match.pills > 0) {
+      setStock(match.pills)
+      setRefillThreshold(Math.max(3, Math.round(match.pills * 0.2)))
+    }
+    setPmc(match.pmc > 0 ? match.pmc : undefined)
+    setStatus(null)
+  }
+
+  const handleBarcode = async (code: string) => {
+    setBarcodeBusy(true)
+    setBarcodeMessage(null)
+    setStatus(null)
+    try {
+      const match = await lookupEan(code)
+      if (match) {
+        applyEanMatch(match)
+        setBarcode({ kind: 'anvisa', code, match })
+      } else {
+        setPmc(undefined)
+        setBarcode({ kind: 'missing', code })
+      }
+    } catch {
+      setStatus({ kind: 'error', text: t('barcode.dataError') })
+      setBarcode(null)
+    } finally {
+      setBarcodeBusy(false)
+    }
+  }
+
+  const resetBarcode = () => {
+    if (barcode?.kind === 'anvisa') {
+      setName('')
+      setSelectedMed(null)
+      setActiveIngredient('')
+      setIngredients([])
+      setPmc(undefined)
+    }
+    setBarcode(null)
+    setBarcodeMessage(null)
+    setStatus(null)
+  }
+
+  const searchBarcodeWithGemini = async () => {
+    if (!geminiConfig || barcode?.kind !== 'missing') return
+    setBarcodeGeminiBusy(true)
+    setBarcodeMessage(null)
+    try {
+      const identified = await identifyBarcodeWithGemini(geminiConfig, barcode.code)
+      if (identified.recognized && identified.name) {
+        applyScan(identified)
+        setPmc(undefined)
+        setBarcode({ kind: 'gemini', code: barcode.code })
+      } else {
+        setBarcodeMessage(t('barcode.geminiNotRecognized'))
+      }
+    } catch (err) {
+      setBarcodeMessage(err instanceof Error ? err.message : t('common.geminiFailed'))
+    } finally {
+      setBarcodeGeminiBusy(false)
+    }
   }
 
   const applyScan = (scan: ScannedMedication) => {
@@ -236,6 +320,7 @@ export const AddMedicationModal = () => {
       activeIngredient: activeIngredient.trim() || undefined,
       adminRule: adminRule.trim() || undefined,
       lastPaidPrice: priceValue ?? undefined,
+      pmc,
       lastPharmacy: pharmacy.trim() || undefined,
       lastPaidAt: priceValue !== null || pharmacy.trim() ? new Date().toISOString() : undefined,
     })
@@ -245,7 +330,7 @@ export const AddMedicationModal = () => {
   const setPerDay = (n: number) => setTimes(defaultTimes(n))
 
   const canAutofill =
-    mode === 'name' ? name.trim().length > 1 : mode === 'paste' ? pasted.trim().length > 2 : image !== null
+    mode === 'name' || mode === 'barcode' ? name.trim().length > 1 : mode === 'paste' ? pasted.trim().length > 2 : image !== null
 
   return (
     <Modal
@@ -267,7 +352,7 @@ export const AddMedicationModal = () => {
     >
       <div className="space-y-6">
         <div className="glass-soft space-y-4 p-4">
-          <div className="flex gap-1.5 rounded-full border border-white/10 bg-black/20 p-1" role="tablist">
+          <div className="grid grid-cols-2 gap-1.5 rounded-3xl border border-white/10 bg-black/20 p-1" role="tablist">
             {MODES.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
@@ -280,7 +365,7 @@ export const AddMedicationModal = () => {
                   mode === id ? 'bg-white/[0.14] text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]' : 'text-slate-400 hover:text-slate-200',
                 )}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-4 w-4 shrink-0" />
                 {t(label)}
               </button>
             ))}
@@ -342,13 +427,37 @@ export const AddMedicationModal = () => {
             </div>
           )}
 
-          <div className="flex items-center gap-3">
-            <button type="button" className="btn btn-primary" onClick={autofill} disabled={busy || !canAutofill}>
-              {busy ? <Spinner /> : <Sparkles className="h-4 w-4" />}
-              {mode === 'name' ? t('add.lookup') : t('add.autofill')}
-            </button>
-            {geminiConfig && <Chip tone="cyan">{t('add.geminiOn')}</Chip>}
-          </div>
+          {mode === 'barcode' && (
+            <div className="space-y-3">
+              {barcodeBusy && (
+                <p className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 px-4 py-6 text-sm text-slate-300">
+                  <Spinner />
+                  {t('barcode.loadingData')}
+                </p>
+              )}
+              {!barcodeBusy && !barcode && <BarcodeScanner onDetected={handleBarcode} />}
+              {!barcodeBusy && barcode && (
+                <BarcodeResultCard
+                  result={barcode}
+                  canUseGemini={geminiConfig !== null}
+                  geminiBusy={barcodeGeminiBusy}
+                  geminiMessage={barcodeMessage}
+                  onGemini={searchBarcodeWithGemini}
+                  onReset={resetBarcode}
+                />
+              )}
+            </div>
+          )}
+
+          {(mode !== 'barcode' || canAutofill) && (
+            <div className="flex items-center gap-3">
+              <button type="button" className="btn btn-primary" onClick={autofill} disabled={busy || !canAutofill}>
+                {busy ? <Spinner /> : <Sparkles className="h-4 w-4" />}
+                {mode === 'name' || mode === 'barcode' ? t('add.lookup') : t('add.autofill')}
+              </button>
+              {geminiConfig && <Chip tone="cyan">{t('add.geminiOn')}</Chip>}
+            </div>
+          )}
 
           {status && <p className={cx('rounded-2xl border px-4 py-3 text-sm animate-fade', STATUS_STYLE[status.kind])}>{status.text}</p>}
         </div>
@@ -567,6 +676,12 @@ export const AddMedicationModal = () => {
             </div>
           </div>
           {priceInvalid && <p className="text-xs text-rose-300">{t('add.invalidPrice')}</p>}
+          {pmc !== undefined && (
+            <p className="num flex items-center gap-2 text-xs text-slate-400">
+              <Tag className="h-3.5 w-3.5 text-emerald-300" />
+              {t('card.pmc')} <span className="font-semibold text-slate-200">{brl.format(pmc)}</span>
+            </p>
+          )}
         </div>
 
         {fda && fda.source !== 'none' && (

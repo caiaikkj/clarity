@@ -160,6 +160,12 @@ export const RefillDrawer = ({ medId, onClose }: { medId: string; onClose: () =>
               )}
             </p>
           )}
+          {med.pmc !== undefined && (
+            <p className="num flex items-center gap-2 text-sm text-slate-300">
+              <Tag className="h-4 w-4 text-emerald-300" />
+              {t('card.pmc')} <span className="font-semibold text-white">{brl.format(med.pmc)}</span>
+            </p>
+          )}
           <div className="grid grid-cols-[120px_1fr] gap-3">
             <div>
               <label className="label" htmlFor="drawer-price">

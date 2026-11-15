@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { ArrowLeftRight, ShieldAlert, Sparkles } from 'lucide-react'
-import type { Interaction, Medication, Severity } from '../types'
+import type { Interaction, Severity } from '../types'
 import { useI18n } from '../i18n'
 import { useGeminiConfig } from '../lib/useGemini'
 import { summarizeInteractionsWithGemini } from '../lib/gemini'
 import { SeverityBadge, SpacingBadge, Spinner, cx } from './ui'
 
 interface Props {
-  meds: Medication[]
   interactions: Interaction[]
   highlightId?: string | null
 }
@@ -22,7 +21,7 @@ const BORDER: Record<Severity, string> = {
   caution: 'border-l-rose-400/80',
 }
 
-export const InteractionChecker = ({ meds, interactions, highlightId }: Props) => {
+export const InteractionChecker = ({ interactions, highlightId }: Props) => {
   const { t } = useI18n()
   const geminiConfig = useGeminiConfig()
   const [filter, setFilter] = useState<Filter>('all')
@@ -49,7 +48,7 @@ export const InteractionChecker = ({ meds, interactions, highlightId }: Props) =
     setBusy(true)
     setError(null)
     try {
-      setSummary(await summarizeInteractionsWithGemini(geminiConfig, meds, interactions))
+      setSummary(await summarizeInteractionsWithGemini(geminiConfig, interactions))
     } catch (err) {
       setError(err instanceof Error ? err.message : t('checker.summaryError'))
     } finally {

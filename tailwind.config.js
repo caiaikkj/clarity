@@ -78,6 +78,10 @@ export default {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
         },
+        scanline: {
+          '0%, 100%': { top: '0%' },
+          '50%': { top: '100%' },
+        },
       },
       animation: {
         drift1: 'drift1 38s ease-in-out infinite',
@@ -89,6 +93,7 @@ export default {
         haptic: 'haptic 0.9s cubic-bezier(0.22,1,0.36,1) both',
         drawer: 'drawer 0.55s cubic-bezier(0.34,1.3,0.64,1) both',
         shimmer: 'shimmer 2.4s linear infinite',
+        scanline: 'scanline 2.2s ease-in-out infinite',
       },
     },
   },

@@ -30,6 +30,7 @@ interface CallOptions {
   language: Lang
   input: InputBlock[]
   json?: boolean
+  temperature?: number
   signal?: AbortSignal
 }
 
@@ -41,9 +42,13 @@ const extractText = (data: GenerateContentResponse | null) => {
     .trim()
 }
 
-const callGemini = async ({ apiKey, model, language, input, json, signal }: CallOptions) => {
+const callGemini = async ({ apiKey, model, language, input, json, temperature, signal }: CallOptions) => {
   let response: Response
   const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+  const generationConfig = {
+    ...(json ? { responseMimeType: 'application/json' } : {}),
+    ...(temperature === undefined ? {} : { temperature }),
+  }
   try {
     response = await fetch(endpointFor(model || DEFAULT_MODEL, apiKey), {
       method: 'POST',
@@ -51,7 +56,7 @@ const callGemini = async ({ apiKey, model, language, input, json, signal }: Call
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: input }],
-        ...(json ? { generationConfig: { responseMimeType: 'application/json' } } : {}),
+        ...(Object.keys(generationConfig).length ? { generationConfig } : {}),
       }),
     })
   } catch {
@@ -80,6 +85,28 @@ const parseJson = <T>(raw: string, language: Lang): T => {
     throw new GeminiError(translate(language, 'gemini.unreadable'))
   }
 }
+
+const unwrapText = (value: unknown): string => {
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) return value.map(unwrapText).filter(Boolean).join(' ')
+  if (value && typeof value === 'object') return Object.values(value).map(unwrapText).filter(Boolean).join(' ')
+  return ''
+}
+
+const plainText = (raw: string) => {
+  const cleaned = raw
+    .replace(/^\s*```(?:json|text|markdown)?/i, '')
+    .replace(/```\s*$/, '')
+    .trim()
+  if (!/^[{[]/.test(cleaned)) return cleaned
+  try {
+    return unwrapText(JSON.parse(cleaned)).trim() || cleaned
+  } catch {
+    return cleaned
+  }
+}
+
+const PLAIN_TEXT_RULE = 'Output format: reply with plain prose only. Do not use JSON, objects, keys, markdown, bullet points or code fences.'
 
 const languageRule = (language: Lang) =>
   `Language: write every human-readable text value in ${LANG_NAME[language]}. Keep JSON keys, ids and enum values exactly as specified.`
@@ -170,24 +197,64 @@ ${languageRule(config.language)} The "instructions", "activeIngredient" and "exp
   return parseJson<ScannedMedication>(raw, config.language)
 }
 
-export const summarizeInteractionsWithGemini = async (config: GeminiConfig, meds: Medication[], interactions: Interaction[]) => {
-  const flagged = interactions
-    .filter((i) => i.known && i.severity !== 'safe')
-    .map((i) => ({ pair: `${i.aLabel} + ${i.bLabel}`, severity: i.severity, note: i.explanation }))
-  const prompt = `You are a calm, clear health explainer. In under 140 words and plain language, summarise these medication and supplement interaction flags for a patient. Start with the most important point, use short sentences, avoid jargon, and finish with one practical tip. Do not diagnose and do not tell them to stop any medication; recommend confirming with their pharmacist or doctor where relevant.
-${languageRule(config.language)}
+export interface BarcodeIdentification extends ScannedMedication {
+  recognized?: boolean
+}
 
-Active items: ${meds.map((m) => `${m.name} ${m.strength}`).join(', ')}
-Flags: ${flagged.length ? JSON.stringify(flagged) : 'none'}`
-  return callGemini({ ...config, input: [text(prompt)] })
+export const identifyBarcodeWithGemini = async (config: GeminiConfig, code: string) => {
+  const prompt = `A user scanned the barcode (EAN/GTIN) "${code}" printed on a medication or supplement package sold in Brazil.
+Identify the product only if you are highly confident that this exact code belongs to a known product. Never guess or invent a product from a partial pattern.
+Return JSON only with this shape:
+{
+  "recognized": boolean,
+${SCAN_SCHEMA.slice(1)}
+If you are not confident, set recognized to false and leave every other field empty (or null).
+${languageRule(config.language)} The "activeIngredient" and "explanation" values must follow that language.`
+  const raw = await callGemini({ ...config, input: [text(prompt)], json: true })
+  return parseJson<BarcodeIdentification>(raw, config.language)
+}
+
+const SUMMARY_TEMPERATURE = 0.2
+
+const SEVERITY_MEANING: Record<Interaction['severity'], string> = {
+  safe: 'SAFE: no meaningful interaction. Say it is fine to take together.',
+  monitor: 'MONITOR: minor or situational. Say to keep an eye on it. Never call it dangerous, serious or risky.',
+  caution: 'CAUTION: needs care. Explain the concern calmly and suggest confirming with a pharmacist or doctor.',
+}
+
+export const summarizeInteractionsWithGemini = async (config: GeminiConfig, interactions: Interaction[]) => {
+  const reviewed = interactions.map((i) => ({
+    pair: `${i.aLabel} + ${i.bLabel}`,
+    status: i.known ? i.severity.toUpperCase() : 'NOT ASSESSED',
+    note: i.explanation,
+    advice: i.advice,
+  }))
+  const prompt = `You are a calm, clear health explainer. In under 120 words and plain language, explain the interaction results below to a patient.
+
+Strict rules:
+- Use ONLY the pairs and statuses listed below. Never add combinations, risks or claims from your own knowledge, and never change a status.
+- Match your tone to each pair's status exactly:
+${Object.values(SEVERITY_MEANING)
+  .map((line) => `  ${line}`)
+  .join('\n')}
+  NOT ASSESSED: say there is no data for it, without implying risk.
+- Start with the most important pair that is not SAFE. If every pair is SAFE, say reassuringly that nothing needs attention.
+- Mention SAFE pairs briefly as fine to combine.
+- Short sentences, no jargon. Do not diagnose and do not tell the patient to stop any medication. Finish with one practical tip drawn from the notes.
+${languageRule(config.language)}
+${PLAIN_TEXT_RULE}
+
+Results: ${JSON.stringify(reviewed)}`
+  return plainText(await callGemini({ ...config, input: [text(prompt)], temperature: SUMMARY_TEMPERATURE }))
 }
 
 export const summarizeBriefingWithGemini = async (config: GeminiConfig, context: string) => {
-  const prompt = `Write a concise, neutral clinical-style paragraph (max 120 words) summarising the patient data below for a doctor's appointment. Mention adherence, any low-stock items, notable symptom patterns and flagged interactions. Do not diagnose. Use plain text only.
+  const prompt = `Write a concise, neutral clinical-style paragraph (max 120 words) summarising the patient data below for a doctor's appointment. Mention adherence, any low-stock items, notable symptom patterns and flagged interactions. Do not diagnose.
 ${languageRule(config.language)}
+${PLAIN_TEXT_RULE}
 
 ${context}`
-  return callGemini({ ...config, input: [text(prompt)] })
+  return plainText(await callGemini({ ...config, input: [text(prompt)] }))
 }
 
 export interface BrazilBridgeResult {

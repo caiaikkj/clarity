@@ -92,6 +92,13 @@ const MedCard = ({ med, index, onRefill }: { med: Medication; index: number; onR
         </p>
       )}
 
+      {med.pmc !== undefined && (
+        <p className="num flex items-center gap-2 text-xs text-slate-400">
+          <Tag className="h-3.5 w-3.5 text-emerald-300" />
+          {t('card.pmc')} <span className="font-semibold text-slate-200">{brl.format(med.pmc)}</span>
+        </p>
+      )}
+
       {med.instructions && <p className="text-sm leading-relaxed text-slate-300">{med.instructions}</p>}
 
       {(linked.length > 0 || med.notes) && (

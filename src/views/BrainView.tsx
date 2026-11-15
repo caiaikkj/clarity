@@ -171,7 +171,7 @@ export const BrainView = () => {
                 {filterId && selected ? t('brain.showingFor', { label: selected.label }) : t('brain.everyPair')}
               </p>
             </div>
-            <InteractionChecker meds={data.meds} interactions={interactions} highlightId={filterId} />
+            <InteractionChecker interactions={interactions} highlightId={filterId} />
           </GlassCard>
         </div>
       )}

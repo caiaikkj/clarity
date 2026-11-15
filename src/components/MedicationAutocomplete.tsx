@@ -2,6 +2,7 @@ import { useId, useMemo, useState, type ChangeEvent, type KeyboardEvent } from '
 import { Pill } from 'lucide-react'
 import { searchAnvisaMeds, type AnvisaMed } from '../data/anvisaMeds'
 import { useI18n } from '../i18n'
+import { useMedsVersion } from '../lib/useAnvisa'
 import { cx } from './ui'
 
 interface Props {
@@ -18,7 +19,8 @@ export const MedicationAutocomplete = ({ value, onChange, onSelect, onSubmit, pl
   const listId = useId()
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
-  const results = useMemo(() => searchAnvisaMeds(value), [value])
+  const datasetVersion = useMedsVersion()
+  const results = useMemo(() => searchAnvisaMeds(value), [value, datasetVersion])
   const visible = open && results.length > 0
   const optionId = (index: number) => `${listId}-${index}`
 
@@ -81,7 +83,7 @@ export const MedicationAutocomplete = ({ value, onChange, onSelect, onSubmit, pl
         >
           {results.map((med, index) => (
             <li
-              key={med.commercialName}
+              key={`${med.commercialName}|${med.activeIngredient}`}
               id={optionId(index)}
               role="option"
               aria-selected={index === activeIndex}

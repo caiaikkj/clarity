@@ -39,6 +39,7 @@ export interface Medication {
   activeIngredient?: string
   adminRule?: string
   lastPaidPrice?: number
+  pmc?: number
   lastPharmacy?: string
   lastPaidAt?: string
 }

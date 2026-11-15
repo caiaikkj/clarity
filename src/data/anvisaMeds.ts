@@ -37,19 +37,53 @@ interface IndexedMed {
   active: string
   english: string
   key: string
+  curated: boolean
 }
 
+let extraMeds: AnvisaMed[] = []
 let index: IndexedMed[] | null = null
+let version = 0
+const listeners = new Set<() => void>()
+
+const toIndexed = (med: AnvisaMed, curated: boolean): IndexedMed => ({
+  med,
+  name: normalizeText(med.commercialName),
+  active: normalizeText(med.activeIngredient),
+  english: normalizeText(med.englishGeneric),
+  key: normalizeKey(med.commercialName),
+  curated,
+})
 
 const getIndex = () => {
-  index ??= ANVISA_MEDS.map((med) => ({
-    med,
-    name: normalizeText(med.commercialName),
-    active: normalizeText(med.activeIngredient),
-    english: normalizeText(med.englishGeneric),
-    key: normalizeKey(med.commercialName),
-  }))
+  if (index) return index
+  const curated = ANVISA_MEDS.map((med) => toIndexed(med, true))
+  const curatedKeys = new Set(curated.map((entry) => entry.key))
+  const extra = extraMeds.map((med) => toIndexed(med, false)).filter((entry) => !curatedKeys.has(entry.key))
+  index = [...curated, ...extra]
   return index
+}
+
+export const registerExtraMeds = (meds: AnvisaMed[]) => {
+  extraMeds = meds
+  index = null
+  version += 1
+  listeners.forEach((listener) => listener())
+}
+
+export const subscribeMeds = (listener: () => void) => {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}
+
+export const getMedsVersion = () => version
+
+export const getExtraMeds = () => extraMeds
+
+export const findCuratedByName = (name: string): AnvisaMed | null => {
+  const key = normalizeKey(name)
+  return key ? (ANVISA_MEDS.find((med) => normalizeKey(med.commercialName) === key) ?? null) : null
 }
 
 interface Weights {
@@ -75,10 +109,17 @@ export const searchAnvisaMeds = (query: string, limit = DEFAULT_LIMIT): AnvisaMe
   return getIndex()
     .map((entry) => ({
       med: entry.med,
+      curated: entry.curated,
       score: Math.max(scoreField(entry.name, q, NAME_WEIGHTS), scoreField(entry.active, q, ACTIVE_WEIGHTS), scoreField(entry.english, q, ENGLISH_WEIGHTS)),
     }))
     .filter((hit) => hit.score > 0)
-    .sort((a, b) => b.score - a.score || a.med.commercialName.localeCompare(b.med.commercialName))
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        Number(b.curated) - Number(a.curated) ||
+        a.med.commercialName.length - b.med.commercialName.length ||
+        a.med.commercialName.localeCompare(b.med.commercialName),
+    )
     .slice(0, limit)
     .map((hit) => hit.med)
 }
