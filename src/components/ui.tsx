@@ -122,9 +122,10 @@ interface ModalProps {
   children: ReactNode
   footer?: ReactNode
   wide?: boolean
+  heavyBlur?: boolean
 }
 
-export const Modal = ({ title, subtitle, onClose, children, footer, wide }: ModalProps) => {
+export const Modal = ({ title, subtitle, onClose, children, footer, wide, heavyBlur }: ModalProps) => {
   const { t } = useI18n()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -139,7 +140,10 @@ export const Modal = ({ title, subtitle, onClose, children, footer, wide }: Moda
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-md animate-fade sm:items-center sm:p-6"
+      className={cx(
+        'fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 animate-fade sm:items-center sm:p-6',
+        heavyBlur ? 'backdrop-blur-2xl' : 'backdrop-blur-md',
+      )}
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
       role="dialog"
       aria-modal="true"
@@ -147,7 +151,8 @@ export const Modal = ({ title, subtitle, onClose, children, footer, wide }: Moda
     >
       <div
         className={cx(
-          'glass flex max-h-[92dvh] w-full animate-pop flex-col !bg-slate-900/60 !rounded-b-none sm:!rounded-b-[28px]',
+          'glass flex max-h-[92dvh] w-full animate-pop flex-col !rounded-b-none sm:!rounded-b-[28px]',
+          heavyBlur ? '!bg-slate-900/45' : '!bg-slate-900/60',
           wide ? 'sm:max-w-2xl' : 'sm:max-w-lg',
         )}
       >

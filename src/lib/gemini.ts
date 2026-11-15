@@ -1,5 +1,6 @@
 import type { Interaction, Medication } from '../types'
 import { LANG_NAME, translate, type Lang } from '../i18n/translations'
+import { normalizeLeaflet } from './leaflet'
 
 export const DEFAULT_MODEL = 'gemini-3.5-flash-lite'
 export const MODEL_OPTIONS = [DEFAULT_MODEL]
@@ -308,6 +309,43 @@ Excerpts:
 ${JSON.stringify(excerpts)}`
   const raw = await callGemini({ ...config, input: [text(prompt)], json: true })
   return parseJson<LocalizedNotes>(raw, config.language)
+}
+
+export interface LeafletRequest {
+  name: string
+  strength: string
+  form: string
+  activeIngredient?: string
+  ingredients: string[]
+  adminRule?: string
+}
+
+export const generateLeaflet = async (config: GeminiConfig, med: LeafletRequest, signal?: AbortSignal) => {
+  const product = {
+    commercialName: med.name,
+    strength: med.strength || null,
+    pharmaceuticalForm: med.form,
+    activeIngredient: med.activeIngredient || med.ingredients.join(' + ') || null,
+    knownAdministrationRule: med.adminRule || null,
+  }
+  const prompt = `You are a Brazilian clinical pharmacist writing a patient-friendly package insert (bula) summary for this product: ${JSON.stringify(product)}.
+
+Rules:
+- Be accurate, conservative and clinically responsible. Use only well-established information about this active ingredient and presentation. If you are unsure about a detail, leave it out or tell the patient to confirm with a pharmacist.
+- Never give a personal dose, never diagnose, and never tell the patient to stop or change a treatment on their own.
+- Write short, clear, jargon-free items (max 25 words each), 2 to 5 items per section.
+- Return JSON only with this exact shape:
+{
+  "indications": string[],        // what it is for
+  "administration": string[],     // how to take it: food, fasting, timing, spacing from other substances, missed dose
+  "sideEffects": string[],        // common side effects, then warning signs that need medical attention
+  "contraindications": string[]   // who should not take it, key precautions, and how to store it
+}
+${languageRule(config.language)} Every string item must follow that language.`
+  const raw = await callGemini({ ...config, input: [text(prompt)], json: true, temperature: SUMMARY_TEMPERATURE, signal })
+  const leaflet = normalizeLeaflet(parseJson<unknown>(raw, config.language))
+  if (!leaflet) throw new GeminiError(translate(config.language, 'gemini.unreadable'))
+  return leaflet
 }
 
 export const generateNotes = async (config: GeminiConfig, name: string, activeIngredient: string, innEn: string[]) => {

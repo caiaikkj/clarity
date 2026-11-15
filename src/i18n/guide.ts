@@ -39,7 +39,7 @@ export const GUIDE: Record<Lang, GuideContent> = {
         title: 'Armário',
         items: [
           'Lista todos os itens ativos com estoque, dias restantes, preço e notas ligadas.',
-          'Detalhes da bula mostra princípio ativo, indicação, avisos e interações. As bulas vêm do openFDA em inglês; use Traduzir para o português (precisa da chave do Gemini).',
+          'Bula abre a bula digital: para que serve, como tomar, efeitos colaterais e contraindicações em cartões. O resumo é gerado pelo Gemini no seu idioma (precisa da chave), fica salvo no aparelho e funciona offline. Use Atualizar para gerar de novo e os links para a bula oficial da ANVISA e do Consulta Remédios.',
           'Repor / Preços registra compras (atualiza o estoque), guarda o histórico de preços, mostra o princípio ativo para pedir o genérico e abre a busca de farmácias próximas.',
           'A lixeira remove o item. Suplementos podem não estar no openFDA, e tudo bem.',
         ],
@@ -110,7 +110,7 @@ export const GUIDE: Record<Lang, GuideContent> = {
         title: 'Cabinet',
         items: [
           'Lists every active item with stock, days of supply, price and linked notes.',
-          'Label details shows active ingredient, purpose, warnings and interactions from the openFDA label.',
+          'Label opens the digital package insert: what it is for, how to take it, side effects and contraindications as scannable cards. Gemini writes the summary in your language (needs a key), it is saved on your device and works offline. Use Regenerate to refresh it, and the links to the official ANVISA and Consulta Remédios leaflets.',
           'Refill / Prices logs purchases (updates stock), keeps a price history, shows the active ingredient so you can ask for the generic, and opens a nearby pharmacy search.',
           'The trash icon removes an item. Supplements may not be in openFDA, and that is fine.',
         ],

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertTriangle, ChevronDown, Clock, NotebookPen, PackagePlus, Pill, Plus, ScanLine, ShieldCheck, ShoppingCart, Tag, Trash2 } from 'lucide-react'
+import { AlertTriangle, BookOpen, Clock, NotebookPen, PackagePlus, Pill, Plus, ScanLine, ShoppingCart, Tag, Trash2 } from 'lucide-react'
 import type { Category, Medication } from '../types'
 import { useI18n } from '../i18n'
 import { formLabel } from '../i18n/forms'
@@ -7,7 +7,7 @@ import { useData, useUi } from '../lib/store'
 import { daysOfSupply, frequencyLabel, isLowStock } from '../lib/schedule'
 import { formatClock, formatDateTime } from '../lib/dates'
 import { brl } from '../lib/format'
-import { LabelDetails } from '../components/LabelDetails'
+import { LeafletModal } from '../components/LeafletModal'
 import { MedBadges } from '../components/MedBadges'
 import { RefillDrawer } from '../components/RefillDrawer'
 import { Chip, EmptyState, GlassCard, PageHeader, cx } from '../components/ui'
@@ -21,10 +21,16 @@ const CATEGORY_META: Record<Category, { tone: 'indigo' | 'cyan' | 'slate'; text:
 const LONG_NAME_CHARS = 22
 const VERY_LONG_NAME_CHARS = 36
 
-const MedCard = ({ med, index, onRefill }: { med: Medication; index: number; onRefill: () => void }) => {
+interface MedCardProps {
+  med: Medication
+  index: number
+  onRefill: () => void
+  onOpenLeaflet: () => void
+}
+
+const MedCard = ({ med, index, onRefill, onOpenLeaflet }: MedCardProps) => {
   const { data, removeMed } = useData()
   const { t, lang } = useI18n()
-  const [open, setOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const meta = CATEGORY_META[med.category]
@@ -132,12 +138,16 @@ const MedCard = ({ med, index, onRefill }: { med: Medication; index: number; onR
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3">
-        <button type="button" onClick={() => setOpen(!open)} className="btn btn-ghost !px-3 !py-1.5 text-xs text-slate-300" aria-expanded={open}>
-          <ShieldCheck className="h-3.5 w-3.5" />
-          {t('card.labelDetails')}
-          <ChevronDown className={cx('h-3.5 w-3.5 transition-transform duration-200 ease-spring', open && 'rotate-180')} />
-        </button>
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onOpenLeaflet}
+            aria-label={t('leaflet.openAria', { name: med.name })}
+            className="btn !rounded-full !border-white/15 !bg-white/[0.08] !px-3.5 !py-1.5 text-xs text-slate-100 backdrop-blur-md"
+          >
+            <BookOpen className="h-3.5 w-3.5 text-sky-300" />
+            {t('leaflet.button')}
+          </button>
           <button
             type="button"
             onClick={onRefill}
@@ -149,6 +159,8 @@ const MedCard = ({ med, index, onRefill }: { med: Medication; index: number; onR
             <ShoppingCart className="h-3.5 w-3.5" />
             {t('card.refill')}
           </button>
+        </div>
+        <div className="flex items-center gap-1.5">
           {confirmDelete ? (
             <>
               <button type="button" className="btn !border-rose-300/40 !bg-rose-500/25 !px-3 !py-1 text-xs" onClick={() => removeMed(med.id)}>
@@ -166,11 +178,6 @@ const MedCard = ({ med, index, onRefill }: { med: Medication; index: number; onR
         </div>
       </div>
 
-      {open && (
-        <div className="animate-fade">
-          <LabelDetails fda={med.fda} ingredients={med.ingredients} medId={med.id} medName={med.name} />
-        </div>
-      )}
     </GlassCard>
   )
 }
@@ -180,6 +187,7 @@ export const CabinetView = () => {
   const { openModal } = useUi()
   const { t } = useI18n()
   const [drawerMedId, setDrawerMedId] = useState<string | null>(null)
+  const [leafletMedId, setLeafletMedId] = useState<string | null>(null)
   const low = data.meds.filter(isLowStock)
   const sorted = [...data.meds].sort((a, b) => Number(isLowStock(b)) - Number(isLowStock(a)))
 
@@ -213,12 +221,13 @@ export const CabinetView = () => {
       ) : (
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3">
           {sorted.map((m, i) => (
-            <MedCard key={m.id} med={m} index={i} onRefill={() => setDrawerMedId(m.id)} />
+            <MedCard key={m.id} med={m} index={i} onRefill={() => setDrawerMedId(m.id)} onOpenLeaflet={() => setLeafletMedId(m.id)} />
           ))}
         </div>
       )}
 
       {drawerMedId && <RefillDrawer medId={drawerMedId} onClose={() => setDrawerMedId(null)} />}
+      {leafletMedId && <LeafletModal medId={leafletMedId} onClose={() => setLeafletMedId(null)} />}
     </>
   )
 }

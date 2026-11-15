@@ -20,6 +20,16 @@ export interface FdaInfo {
   localizedLang?: 'pt-BR' | 'en-US'
 }
 
+export interface LeafletSummary {
+  indications: string[]
+  administration: string[]
+  sideEffects: string[]
+  contraindications: string[]
+  generatedAt: string
+}
+
+export type LeafletCache = Partial<Record<'pt-BR' | 'en-US', LeafletSummary>>
+
 export interface Medication {
   id: string
   name: string
@@ -44,6 +54,7 @@ export interface Medication {
   lastPaidAt?: string
   spacingHours?: number
   spacingTarget?: string
+  leafletSummary?: LeafletCache
 }
 
 export interface SpacingInfo {
